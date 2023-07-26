@@ -327,6 +327,7 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/tc-earth_nightmap_citylights.gif"); // TextureImage1
     LoadTextureImage("../../data/tc-monster.jpg");                   // TextureImage2
     LoadTextureImage("../../data/tc-liberty.png");                   // TextureImage3
+    LoadTextureImage("../../data/tc-grass.jpg");                     // TextureImage4
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -399,8 +400,6 @@ int main(int argc, char* argv[])
         float y = r*sin(g_CameraPhi);
         float z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
         float x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
-
-        cout << g_NumLoadedTextures ;
 
         // Abaixo definimos as varáveis que efetivamente definem a câmera virtual.
         // Veja slides 195-227 e 229-234 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
@@ -506,7 +505,6 @@ int main(int argc, char* argv[])
         model = Matrix_Translate(0.0f,-1.0f,0.0f)
               * Matrix_Scale(15.0f, 15.0f, 15.0f);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-
         glUniform1i(g_object_id_uniform, PLANE);
         DrawVirtualObject("the_plane");
 
@@ -727,6 +725,7 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage1"), 1);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage2"), 2);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage3"), 3);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage4"), 4);
     glUseProgram(0);
 }
 

@@ -35,6 +35,7 @@ uniform sampler2D TextureImage0;
 uniform sampler2D TextureImage1;
 uniform sampler2D TextureImage2;
 uniform sampler2D TextureImage3;
+uniform sampler2D TextureImage4;
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec4 color;
@@ -73,7 +74,7 @@ void main()
     vec4 V = normalize(vec4(0.0f, -1.0f, 0.0f, 0.0f));
 
     // Vetor que define o sentido da reflexão especular ideal.
-    // vec4 r = vec4(0.0,0.0,0.0,0.0);
+
     // PARA SPOTLIGHT
     // vec4 r = -L+2*n*(dot(n, L));
     // PARA ILUMINAÇÃO LOCAL
@@ -91,12 +92,6 @@ void main()
 
     if ( object_id == SPHERE )
     {
-        // Propriedades espectrais da esfera
-        // Kd = vec3(0.8, 0.4, 0.08);
-        // Ks = vec3(0.0, 0.0, 0.0);
-        // Ka = vec3(0.4, 0.2, 0.04);
-        // q = 1.0;
-
         // PARA TEXTURA
         vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
         vec4 p_line = bbox_center + (position_model - bbox_center)/(length(position_model - bbox_center));
@@ -107,12 +102,6 @@ void main()
     }
     else if ( object_id == BUNNY )
     {
-        // Propriedades espectrais do coelho
-        // Kd = vec3(0.008, 0.4, 0.8);
-        // Ks = vec3(0.8, 0.8, 0.8);
-        // Ka = vec3(0.004 ,0.2, 0.4);
-        // q = 32.0;
-
         // PARA TEXTURA
         float minx = bbox_min.x;
         float maxx = bbox_max.x;
@@ -128,36 +117,29 @@ void main()
     }
     else if ( object_id == PLANE )
     {
-        // Propriedades espectrais do plano
-        // Kd = vec3(0.2, 0.2, 0.2);
-        // Ks = vec3(0.3, 0.3, 0.3);
-        // Ka = vec3(0.0, 0.0, 0.0);
-        // q = 20.0;
-
         // PARA TEXTURA
         // Coordenadas de textura do plano, obtidas do arquivo OBJ.
-        p_U = texcoords.x;
-        p_V = texcoords.y;
+        float minx = bbox_min.x;
+        float maxx = bbox_max.x;
+
+        float miny = bbox_min.y;
+        float maxy = bbox_max.y;
+
+        float minz = bbox_min.z;
+        float maxz = bbox_max.z;
+
+        p_U = (position_model.x - minx)/(maxx - minx);
+        p_V = (position_model.z - minz)/(maxz - minz);
     }
     else if ( object_id == LIBERTY )
     {
-        // Propriedades espectrais da liberdade
-        // Kd = vec3(0.008, 0.4, 0.8);
-        // Ks = vec3(0.8, 0.8, 0.8);
-        // Ka = vec3(0.004 ,0.2, 0.4);
-        // q = 32.0;
-
-        //liberty_p_U = texcoords_liberty.x;
-        //liberty_p_V = texcoords_liberty.y;
+        // PARA TEXTURA
+        // Coordenadas de textura da estatua, obtidas do arquivo OBJ.
+        p_U = texcoords.x;
+        p_V = texcoords.y;
     }
     else if ( object_id == MONSTER )
     {
-        // Propriedades espectrais do coelho
-        // Kd = vec3(0.8, 0.4, 0.08);
-        // Ks = vec3(0.0, 0.0, 0.0);
-        // Ka = vec3(0.4, 0.2, 0.04);
-        // q = 64.0;
-
         // PARA TEXTURA
         // Coordenadas de textura do plano, obtidas do arquivo OBJ.
         p_U = texcoords.x;
@@ -165,17 +147,30 @@ void main()
     }
     else // Objeto desconhecido = preto
     {
-        Kd = vec3(0.0, 0.0, 0.0);
-        Ks = vec3(0.0, 0.0, 0.0);
-        Ka = vec3(0.0, 0.0, 0.0);
-        q = 1.0;
+        p_U = texcoords.x;
+        p_V = texcoords.y;
     }
 
     // Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
     vec3 Kd0 = texture(TextureImage0, vec2(p_U, p_V)).rgb;
     vec3 Kd1 = texture(TextureImage1, vec2(p_U, p_V)).rgb;
-    vec3 Kd2 = texture(TextureImage2, vec2(p_U, p_V)).rgb;
-    //vec3 Kd3 = texture(TextureImage3, vec2(liberty_p_U, liberty_p_V)).rgb;
+
+    if (object_id == MONSTER)
+    {
+        Kd0 = texture(TextureImage2, vec2(p_U, p_V)).rgb;
+        Kd1 = vec3(0.0f, 0.0f, 0.0f);
+    }
+    else if (object_id == LIBERTY)
+    {
+        Kd0 = texture(TextureImage3, vec2(p_U, p_V)).rgb;
+        Kd1 = vec3(0.0f, 0.0f, 0.0f);
+    }
+    else if (object_id == PLANE)
+    {
+        Kd0 = texture(TextureImage4, vec2(p_U, p_V)).rgb;
+        Kd1 = vec3(0.0f, 0.0f, 0.0f);
+    }
+
 
     // Espectro da fonte de iluminação
     vec3 I = vec3(1.0, 1.0, 1.0);
@@ -217,17 +212,13 @@ void main()
     //    transparentes que estão mais longe da câmera).
     // Alpha default = 1 = 100% opaco = 0% transparente
     color.a = 1;
-   // monster_color.a = 1;
-    //liberty_color.a = 1;
 
     // Cor final do fragmento calculada com uma combinação dos termos difuso,
     // especular, e ambiente. Veja slide 129 do documento Aula_17_e_18_Modelos_de_Iluminacao.pdf.
     // PARA ILUMINAÇÃO LOCAL
     // color.rgb = lambert_diffuse_term + ambient_term + phong_specular_term;
     // PARA TEXTURA
-    //color.rgb = Kd0 * (lambert + 0.01) + (Kd1 * 0.25);
-    color.rgb = Kd2 * (lambert + 0.01);
-    //liberty_color.rgb = Kd3 * (lambert + 0.01);
+    color.rgb = Kd0 * (lambert + 0.01) + (Kd1 * 0.25);
 
     // PARA SPOTLIGHT
     /*if (beta > cos(alpha))
@@ -242,8 +233,6 @@ void main()
     // Cor final com correção gamma, considerando monitor sRGB.
     // Veja https://en.wikipedia.org/w/index.php?title=Gamma_correction&oldid=751281772#Windows.2C_Mac.2C_sRGB_and_TV.2Fvideo_standard_gammas
     color.rgb = pow(color.rgb, vec3(1.0,1.0,1.0)/2.2);
-    //monster_color.rgb = pow(monster_color.rgb, vec3(1.0,1.0,1.0)/2.2);
-    //liberty_color.rgb = pow(liberty_color.rgb, vec3(1.0,1.0,1.0)/2.2);
 
 }
 
