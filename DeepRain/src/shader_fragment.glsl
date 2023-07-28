@@ -24,6 +24,9 @@ uniform mat4 projection;
 #define PLANE  2
 #define LIBERTY  3
 #define MONSTER 4
+#define ROCK 5
+#define HAND 6
+
 uniform int object_id;
 
 // Parâmetros da axis-aligned bounding box (AABB) do modelo
@@ -31,11 +34,14 @@ uniform vec4 bbox_min;
 uniform vec4 bbox_max;
 
 // Variáveis para acesso das imagens de textura
-uniform sampler2D TextureImage0;
-uniform sampler2D TextureImage1;
-uniform sampler2D TextureImage2;
-uniform sampler2D TextureImage3;
-uniform sampler2D TextureImage4;
+uniform sampler2D TextureImage0; //MAP
+uniform sampler2D TextureImage1; //LIGHTS MAP
+uniform sampler2D TextureImage2; //MONSTER
+uniform sampler2D TextureImage3; //STATUE
+uniform sampler2D TextureImage4; //GRASS
+uniform sampler2D TextureImage5; //SKY
+uniform sampler2D TextureImage6; //ROCK
+uniform sampler2D TextureImage7; //HAND
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec4 color;
@@ -63,7 +69,7 @@ void main()
     vec4 n = normalize(normal);
 
     // Vetor que define o sentido da fonte de luz em relação ao ponto atual.
-    vec4 l = normalize(vec4(1.0, 1.0, 0.5, 0.0));
+    vec4 l = normalize(vec4(0.0, 1.0, 0.0, 0.0));
     // Ponto onde está localizada a fonte de luz spotlight
     vec4 l_spot = vec4(0.0f, 2.0f, 1.0f, 1.0f);
     // Vetor que define o sentido da fonte de luz spotlight em relação ao ponto atual
@@ -100,7 +106,7 @@ void main()
         p_U = (atan(vecp[0], vecp[2]) + M_PI)/(2*M_PI);
         p_V = (asin(vecp[1]) + M_PI_2)/M_PI;
     }
-    else if ( object_id == BUNNY )
+    else if ( object_id == BUNNY || object_id == PLANE )
     {
         // PARA TEXTURA
         float minx = bbox_min.x;
@@ -112,36 +118,21 @@ void main()
         float minz = bbox_min.z;
         float maxz = bbox_max.z;
 
-        p_U = (position_model.x - minx)/(maxx - minx);
-        p_V = (position_model.y - miny)/(maxy - miny);
+        if ( object_id == BUNNY)
+        {
+            p_U = (position_model.x - minx)/(maxx - minx);
+            p_V = (position_model.y - miny)/(maxy - miny);
+        }
+        else
+        {
+            p_U = (position_model.x - minx)/(maxx - minx);
+            p_V = (position_model.z - minz)/(maxz - minz);
+        }
     }
-    else if ( object_id == PLANE )
+    else if ( object_id == LIBERTY || object_id == MONSTER || object_id == ROCK || object_id == HAND )
     {
         // PARA TEXTURA
-        // Coordenadas de textura do plano, obtidas do arquivo OBJ.
-        float minx = bbox_min.x;
-        float maxx = bbox_max.x;
-
-        float miny = bbox_min.y;
-        float maxy = bbox_max.y;
-
-        float minz = bbox_min.z;
-        float maxz = bbox_max.z;
-
-        p_U = (position_model.x - minx)/(maxx - minx);
-        p_V = (position_model.z - minz)/(maxz - minz);
-    }
-    else if ( object_id == LIBERTY )
-    {
-        // PARA TEXTURA
-        // Coordenadas de textura da estatua, obtidas do arquivo OBJ.
-        p_U = texcoords.x;
-        p_V = texcoords.y;
-    }
-    else if ( object_id == MONSTER )
-    {
-        // PARA TEXTURA
-        // Coordenadas de textura do plano, obtidas do arquivo OBJ.
+        // Coordenadas de textura da estatua, monstro ou pedra, obtidas dos arquivos OBJ.
         p_U = texcoords.x;
         p_V = texcoords.y;
     }
@@ -170,7 +161,21 @@ void main()
         Kd0 = texture(TextureImage4, vec2(p_U, p_V)).rgb;
         Kd1 = vec3(0.0f, 0.0f, 0.0f);
     }
-
+    else if (object_id == SPHERE)
+    {
+        Kd0 = texture(TextureImage5, vec2(p_U, p_V)).rgb;
+        Kd1 = vec3(0.0f, 0.0f, 0.0f);
+    }
+    else if (object_id == ROCK)
+    {
+        Kd0 = texture(TextureImage6, vec2(p_U, p_V)).rgb;
+        Kd1 = vec3(0.0f, 0.0f, 0.0f);
+    }
+    else if (object_id == HAND)
+    {
+        Kd0 = texture(TextureImage7, vec2(p_U, p_V)).rgb;
+        Kd1 = vec3(0.0f, 0.0f, 0.0f);
+    }
 
     // Espectro da fonte de iluminação
     vec3 I = vec3(1.0, 1.0, 1.0);
@@ -187,7 +192,7 @@ void main()
     // PARA SPOTLIGHT
     // vec3 lambert_diffuse_term = Kd*I*max(0.0, dot(n, L));
     // PARA TEXTURA
-    float lambert = max(0,dot(n,l));
+    float lambert = max(0, dot(n, l));
 
     // Termo especular utilizando o modelo de iluminação de Phong
     // PARA ILUMINAÇÃO LOCAL
@@ -218,7 +223,7 @@ void main()
     // PARA ILUMINAÇÃO LOCAL
     // color.rgb = lambert_diffuse_term + ambient_term + phong_specular_term;
     // PARA TEXTURA
-    color.rgb = Kd0 * (lambert + 0.01) + (Kd1 * 0.25);
+    color.rgb = Kd0 * (lambert + 0.1) + (Kd1 * 0.25) ;
 
     // PARA SPOTLIGHT
     /*if (beta > cos(alpha))

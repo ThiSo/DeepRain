@@ -41,13 +41,23 @@
 #include <glm/gtc/type_ptr.hpp>
 
 // Headers da biblioteca para carregar modelos obj
-#include <tiny_obj_loader.h>
 #include <stb_image.h>
+#include <tiny_obj_loader.h>
 
 // Headers locais, definidos na pasta "include/"
 #include "utils.h"
 #include "matrices.h"
 
+// Defines para os objetos
+#define SPHERE 0
+#define BUNNY  1
+#define PLANE  2
+#define LIBERTY 3
+#define MONSTER 4
+#define ROCK 5
+#define HAND 6
+
+// Prints para debugging
 #include "iostream"
 using namespace std;
 
@@ -117,6 +127,7 @@ void PopMatrix(glm::mat4& M);
 // Declaração de várias funções utilizadas em main().  Essas estão definidas
 // logo após a definição de main() neste arquivo.
 void BuildTrianglesAndAddToVirtualScene(ObjModel*); // Constrói representação de um ObjModel como malha de triângulos para renderização
+GLuint BuildTrianglesForCrosshair(); // Constrói triângulos para renderização
 void ComputeNormals(ObjModel* model); // Computa normais de um ObjModel, caso não existam.
 void LoadShadersFromFiles(); // Carrega os shaders de vértice e fragmento, criando um programa de GPU
 void LoadTextureImage(const char* filename); // Função que carrega imagens de textura
@@ -179,6 +190,9 @@ std::map<std::string, SceneObject> g_VirtualScene;
 // Pilha que guardará as matrizes de modelagem.
 std::stack<glm::mat4>  g_MatrixStack;
 
+// def do vetor de indices
+typedef GLubyte index_type;
+
 // Razão de proporção da janela (largura/altura). Veja função FramebufferSizeCallback().
 float g_ScreenRatio = 1.0f;
 
@@ -201,14 +215,6 @@ float g_CameraTheta = 0.0f; // Ângulo no plano ZX em relação ao eixo Z
 float g_CameraPhi = 0.0f;   // Ângulo em relação ao eixo Y
 float g_CameraDistance = 3.5f; // Distância da câmera para a origem
 
-// Variáveis que controlam rotação do antebraço
-float g_ForearmAngleZ = 0.0f;
-float g_ForearmAngleX = 0.0f;
-
-// Variáveis que controlam translação do torso
-float g_TorsoPositionX = 0.0f;
-float g_TorsoPositionY = 0.0f;
-
 // Variável que controla o tipo de projeção utilizada: perspectiva ou ortográfica.
 bool g_UsePerspectiveProjection = true;
 
@@ -228,22 +234,21 @@ bool tecla_W_pressionada = false;
 bool tecla_A_pressionada = false;
 bool tecla_S_pressionada = false;
 bool tecla_D_pressionada = false;
-bool tecla_C_pressionada = true;
+bool tecla_O_pressionada = false;
+bool isLooking = false;
 
-bool pego = false;
+bool proximo = false;
 
 float delta_t = 0.0f;
 float g_Theta = 3.141592f / 4;
 float g_Phi = 3.141592f / 6;
 
-float x_monster = 2.0f;
-float y_monster = 0.6f;
-float z_monster = -12.0f;
 float monster_angle = 3.141592f/2;
 
-glm::vec4 camera_position_c = glm::vec4(0.0f, 0.0f, 2.0f, 1.0f);
 glm::vec4 camera_view_vector;
-glm::vec4 monster_view;
+glm::vec4 camera_position_c = glm::vec4(0.0f, 1.0f, 2.0f, 1.0f);
+glm::vec4 monster_position = glm::vec4(4.0f, 0.6f, -15.0f, 1.0f);
+glm::vec4 hand_position;
 
 // Número de texturas carregadas pela função LoadTextureImage()
 GLuint g_NumLoadedTextures = 0;
@@ -277,7 +282,7 @@ int main(int argc, char* argv[])
     // Criamos uma janela do sistema operacional, com 800 colunas e 600 linhas
     // de pixels, e com título "INF01047 ...".
     GLFWwindow* window;
-    window = glfwCreateWindow(800, 600, "INF01047 - 323982 - Thiago Silva Oliveski", NULL, NULL);
+    window = glfwCreateWindow(800, 600, "INF01047 - DeepRain", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -301,6 +306,10 @@ int main(int argc, char* argv[])
     // Carregamento de todas funções definidas por OpenGL 3.3, utilizando a
     // biblioteca GLAD.
     gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
+
+    // Esconde o cursor e o inicia no centro da tela
+    glfwSetCursorPos(window, 0.0f, 0.0f);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // Definimos a função de callback que será chamada sempre que a janela for
     // redimensionada, por consequência alterando o tamanho do "framebuffer"
@@ -328,6 +337,9 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/tc-monster.jpg");                   // TextureImage2
     LoadTextureImage("../../data/tc-liberty.png");                   // TextureImage3
     LoadTextureImage("../../data/tc-grass.jpg");                     // TextureImage4
+    LoadTextureImage("../../data/tc-skydome.jpg");                   // TextureImage5
+    LoadTextureImage("../../data/tc-rock.jpg");                      // TextureImage6
+    LoadTextureImage("../../data/tc-hand.jpg");                      // TextureImage7
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -350,11 +362,22 @@ int main(int argc, char* argv[])
     ComputeNormals(&monstermodel);
     BuildTrianglesAndAddToVirtualScene(&monstermodel);
 
+    ObjModel rockmodel("../../data/rock.obj");
+    ComputeNormals(&rockmodel);
+    BuildTrianglesAndAddToVirtualScene(&rockmodel);
+
+    ObjModel handmodel("../../data/hand.obj");
+    ComputeNormals(&handmodel);
+    BuildTrianglesAndAddToVirtualScene(&handmodel);
+
     if ( argc > 1 )
     {
         ObjModel model(argv[1]);
         BuildTrianglesAndAddToVirtualScene(&model);
     }
+
+    // Construímos a representação da crosshair
+    GLuint vertex_array_object_id_crosshair = BuildTrianglesForCrosshair();
 
     // Inicializamos o código para renderização de texto.
     TextRendering_Init();
@@ -368,8 +391,10 @@ int main(int argc, char* argv[])
     glFrontFace(GL_CCW);
 
     // adições pra atualização da câmera
-    float speed = 3.0f; // Velocidade da câmera
+    float speed = 5.0f; // Velocidade da câmera
+    float monster_speed = 2.0f;
     float prev_time = (float)glfwGetTime();
+    float prevy_camera_position_c;
 
     // Ficamos em um loop infinito, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
@@ -401,13 +426,45 @@ int main(int argc, char* argv[])
         float z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
         float x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
 
-        // Abaixo definimos as varáveis que efetivamente definem a câmera virtual.
-        // Veja slides 195-227 e 229-234 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
-        // glm::vec4 camera_position_c  = glm::vec4(x,y,z,1.0f); // Ponto "c", centro da câmera
-        // glm::vec4 camera_lookat_l    = glm::vec4(0.0f,0.0f,0.0f,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
-        // glm::vec4 camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
         glm::vec4 camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
         camera_view_vector = glm::vec4(x, y, -z, 0.0f); // Vetor "view", sentido para onde a câmera está virada
+
+        if (length(camera_position_c - monster_position) < 15.0f) proximo = true;
+        else
+        {
+            proximo = false;
+            tecla_O_pressionada = false;
+            isLooking = !isLooking;
+        }
+
+        // Se o jogador se aproximar do monstro, este o persegue
+        if (proximo)
+        {
+            if (tecla_O_pressionada)
+                camera_view_vector = monster_position - camera_position_c;
+            else
+                camera_view_vector = glm::vec4(x, y, -z, 0.0f);
+
+            if (camera_position_c.x - 2.0f < monster_position.x)
+            {
+                monster_position.x -= monster_speed * delta_t;
+                monster_angle -= 0.01*3.141592f/2;
+            }
+            if (camera_position_c.x + 2.0f> monster_position.x)
+            {
+                monster_position.x += monster_speed  * delta_t;
+                monster_angle += 0.01*3.141592f/2;
+            }
+            if (camera_position_c.z - 2.0f < monster_position.z)
+            {
+                monster_position.z -= monster_speed  * delta_t;
+            }
+            if (camera_position_c.z + 2.0f > monster_position.z)
+            {
+                monster_position.z += monster_speed  * delta_t;
+            }
+
+        }
 
         glm::vec4 w = - camera_view_vector;
         glm::vec4 u = crossproduct(camera_up_vector, w);
@@ -418,7 +475,10 @@ int main(int argc, char* argv[])
         if (tecla_W_pressionada)
         {
             // Movimenta câmera para frente
+            prevy_camera_position_c = camera_position_c.y;
             camera_position_c += -w * speed * delta_t;
+            if (camera_position_c.y > 0.0f || camera_position_c.y < -0.01f)
+                camera_position_c.y = prevy_camera_position_c;
         }
 
         if (tecla_A_pressionada)
@@ -430,7 +490,10 @@ int main(int argc, char* argv[])
         if (tecla_S_pressionada)
         {
             // Movimenta câmera para trás
+            prevy_camera_position_c = camera_position_c.y;
             camera_position_c += w * speed * delta_t;
+            if (camera_position_c.y > 0.0f || camera_position_c.y < -0.01f)
+                camera_position_c.y = prevy_camera_position_c;
         }
 
         if (tecla_D_pressionada)
@@ -438,6 +501,9 @@ int main(int argc, char* argv[])
             // Movimenta câmera para direita
             camera_position_c += u * speed * delta_t;
         }
+
+        // atualiza a posição da mão do jogador com base na nova posição
+        hand_position = glm::vec4(camera_position_c.x + 0.125, camera_position_c.y - 0.125, camera_position_c.z - 0.25, 1.0f);
 
         // Computamos a matriz "View" utilizando os parâmetros da câmera para
         // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
@@ -449,28 +515,12 @@ int main(int argc, char* argv[])
         // Note que, no sistema de coordenadas da câmera, os planos near e far
         // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
         float nearplane = -0.1f;  // Posição do "near plane"
-        float farplane  = -20.0f; // Posição do "far plane"
+        float farplane  = -50.0f; // Posição do "far plane"
 
-        if (g_UsePerspectiveProjection)
-        {
-            // Projeção Perspectiva.
-            // Para definição do field of view (FOV), veja slides 205-215 do documento Aula_09_Projecoes.pdf.
-            float field_of_view = 3.141592 / 3.0f;
-            projection = Matrix_Perspective(field_of_view, g_ScreenRatio, nearplane, farplane);
-        }
-        else
-        {
-            // Projeção Ortográfica.
-            // Para definição dos valores l, r, b, t ("left", "right", "bottom", "top"),
-            // PARA PROJEÇÃO ORTOGRÁFICA veja slides 219-224 do documento Aula_09_Projecoes.pdf.
-            // Para simular um "zoom" ortográfico, computamos o valor de "t"
-            // utilizando a variável g_CameraDistance.
-            float t = 1.5f*g_CameraDistance/2.5f;
-            float b = -t;
-            float r = t*g_ScreenRatio;
-            float l = -r;
-            projection = Matrix_Orthographic(l, r, b, t, nearplane, farplane);
-        }
+        // Projeção Perspectiva.
+        // Para definição do field of view (FOV), veja slides 205-215 do documento Aula_09_Projecoes.pdf.
+        float field_of_view = 3.141592 / 3.0f;
+        projection = Matrix_Perspective(field_of_view, g_ScreenRatio, nearplane, farplane);
 
         glm::mat4 model = Matrix_Identity(); // Transformação identidade de modelagem
 
@@ -480,17 +530,15 @@ int main(int argc, char* argv[])
         glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
         glUniformMatrix4fv(g_projection_uniform , 1 , GL_FALSE , glm::value_ptr(projection));
 
-        #define SPHERE 0
-        #define BUNNY  1
-        #define PLANE  2
-        #define LIBERTY 3
-        #define MONSTER 4
-
         // Desenhamos o modelo da esfera
-        model = Matrix_Translate(-2.0f,0.0f,0.0f);
+        model = Matrix_Translate(camera_position_c.x, camera_position_c.y, camera_position_c.z);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, SPHERE);
+        glDisable(GL_CULL_FACE);
+        glDisable(GL_DEPTH_TEST);
         DrawVirtualObject("the_sphere");
+        glEnable(GL_CULL_FACE);
+        glEnable(GL_DEPTH_TEST);
 
         // Desenhamos o modelo do coelho
         model = Matrix_Translate(2.0f,0.0f,0.0f)
@@ -503,7 +551,7 @@ int main(int argc, char* argv[])
 
         // Desenhamos o plano
         model = Matrix_Translate(0.0f,-1.0f,0.0f)
-              * Matrix_Scale(15.0f, 15.0f, 15.0f);
+              * Matrix_Scale(5.0f, 5.0f, 5.0f);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, PLANE);
         DrawVirtualObject("the_plane");
@@ -517,7 +565,7 @@ int main(int argc, char* argv[])
         DrawVirtualObject("the_liberty");
 
         // Desenhamos o monstro
-        model = Matrix_Translate(x_monster, y_monster, z_monster)
+        model = Matrix_Translate(monster_position.x, monster_position.y, monster_position.z)
               * Matrix_Scale(2.0f, 2.0f, 2.0f)
               * Matrix_Rotate_X(3.141592f/16)
               * Matrix_Rotate_Y(monster_angle);
@@ -525,32 +573,33 @@ int main(int argc, char* argv[])
         glUniform1i(g_object_id_uniform, MONSTER);
         DrawVirtualObject("the_monster");
 
-        // Enquanto o jogador não for pego, o inimigo o persegue
-        if (!pego)
+        // Desenhamos a mão
+        model = Matrix_Translate(hand_position.x, hand_position.y, hand_position.z)
+              * Matrix_Scale(0.125f, 0.125f, 0.125f)
+              * Matrix_Rotate_Z(3.141592f/6)
+              * Matrix_Rotate_X(-3.141592f/2);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, HAND);
+        DrawVirtualObject("the_hand");
+
+        // Desenhamos multiplas pedras a partir do mesmo objeto
+        for (int i=0; i<4; i++)
         {
-
-            if (camera_position_c[0] - 2.0f < x_monster)
+            if (i == 0 || i == 1)
             {
-                x_monster -= 0.025f;
-                monster_angle -= 0.01*3.141592f/2;
+                model = Matrix_Translate(25.0f*pow(-1, i), 0.0f + (0.6*i), 25.0f*pow(-1, i+1))
+                      * Matrix_Scale(2.0f + i, 2.0f + i, 2.0f + i)
+                      * Matrix_Rotate_Y((3.141592f/2)*(i+1));
             }
-            if (camera_position_c[0] + 2.0f> x_monster)
+            else
             {
-                x_monster += 0.025f;
-                monster_angle += 0.01*3.141592f/2;
+                model = Matrix_Translate(25.0f*pow(-1, i), 0.0f + (0.6*i), 25.0f*pow(-1, i))
+                      * Matrix_Scale(2.0f + i, 2.0f + i, 2.0f + i)
+                      * Matrix_Rotate_Y((3.141592f/2)*(i+1));
             }
-            if (camera_position_c[2] - 2.0f < z_monster)
-            {
-                z_monster -= 0.025f;
-                //
-            }
-            if (camera_position_c[2] + 2.0f > z_monster)
-            {
-                z_monster += 0.025f;
-                //
-            }
-
-            // monster_view = camera_position_c - glm::vec4(x_monster, y_monster, z_monster, 1.0f);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, ROCK);
+            DrawVirtualObject("the_rock");
         }
 
         // Imprimimos na tela os ângulos de Euler que controlam a rotação do
@@ -563,6 +612,14 @@ int main(int argc, char* argv[])
         // Imprimimos na tela informação sobre o número de quadros renderizados
         // por segundo (frames per second).
         TextRendering_ShowFramesPerSecond(window);
+
+        // desenha a crossair na frente da tela
+        glDisable(GL_DEPTH_TEST);
+        glBindVertexArray(vertex_array_object_id_crosshair);
+        glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_BYTE, 0);
+        glEnable(GL_DEPTH_TEST);
+
+        glBindVertexArray(0);
 
         // Atualiza delta de tempo
         float current_time = (float)glfwGetTime();
@@ -634,6 +691,8 @@ void LoadTextureImage(const char* filename)
     GLuint textureunit = g_NumLoadedTextures;
     glActiveTexture(GL_TEXTURE0 + textureunit);
     glBindTexture(GL_TEXTURE_2D, texture_id);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
     glGenerateMipmap(GL_TEXTURE_2D);
     glBindSampler(textureunit, sampler_id);
@@ -674,6 +733,87 @@ void DrawVirtualObject(const char* object_name)
     // "Desligamos" o VAO, evitando assim que operações posteriores venham a
     // alterar o mesmo. Isso evita bugs.
     glBindVertexArray(0);
+}
+
+// Constrói triângulos para futura renderização
+GLuint BuildTrianglesForCrosshair()
+{
+
+    GLfloat NDC_coefficients[] = {
+        -0.05f,  0.0125f, 0.0f, 1.0f, // posição do vértice 0
+         0.05f,  0.0125f, 0.0f, 1.0f, // posição do vértice 1
+         0.05f, -0.0125f, 0.0f, 1.0f, // posição do vértice 2
+        -0.05f, -0.0125f, 0.0f, 1.0f, // posição do vértice 3
+
+        -0.0125f,  0.05f, 0.0f, 1.0f, // posição do vértice 4
+         0.0125f,  0.05f, 0.0f, 1.0f, // posição do vértice 5
+         0.0125f, -0.05f, 0.0f, 1.0f, // posição do vértice 6
+        -0.0125f, -0.05f, 0.0f, 1.0f, // posição do vértice 7
+    };
+
+    GLuint VBO_NDC_coefficients_id;
+    glGenBuffers(1, &VBO_NDC_coefficients_id);
+
+    GLuint vertex_array_object_id;
+    glGenVertexArrays(1, &vertex_array_object_id);
+
+    glBindVertexArray(vertex_array_object_id);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_NDC_coefficients_id);
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(NDC_coefficients), NULL, GL_STATIC_DRAW);
+
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(NDC_coefficients), NDC_coefficients);
+
+    GLuint location = 0; // "(location = 0)" em "shader_vertex.glsl"
+    GLint  number_of_dimensions = 4; // vec4 em "shader_vertex.glsl"
+    glVertexAttribPointer(location, number_of_dimensions, GL_FLOAT, GL_FALSE, 0, 0);
+
+    glEnableVertexAttribArray(location);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    GLfloat color_coefficients[32] = {};
+
+    for (int i=0; i<32; i+=4){
+        color_coefficients[i] = 1.0f;
+        color_coefficients[i+1] = 1.0f;
+        color_coefficients[i+2] = 1.0f;
+        color_coefficients[i+3] = 1.0f;
+    };
+
+    GLuint VBO_color_coefficients_id;
+    glGenBuffers(1, &VBO_color_coefficients_id);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_color_coefficients_id);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(color_coefficients), NULL, GL_STATIC_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(color_coefficients), color_coefficients);
+    location = 1; // "(location = 1)" em "shader_vertex.glsl"
+    number_of_dimensions = 4; // vec4 em "shader_vertex.glsl"
+    glVertexAttribPointer(location, number_of_dimensions, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(location);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    index_type indices[]={3, 1, 0,
+                          3, 2, 1,
+                          6, 5, 4,
+                          6, 4, 7};
+
+    // Criamos um buffer OpenGL para armazenar os índices acima
+    GLuint indices_id;
+    glGenBuffers(1, &indices_id);
+
+    // "Ligamos" o buffer. Note que o tipo agora é GL_ELEMENT_ARRAY_BUFFER.
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices_id);
+
+    // Alocamos memória para o buffer.
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), NULL, GL_STATIC_DRAW);
+
+    // Copiamos os valores do array indices[] para dentro do buffer.
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(indices), indices);
+
+    glBindVertexArray(0);
+
+    return vertex_array_object_id;
 }
 
 // Função que carrega os shaders de vértices e de fragmentos que serão
@@ -726,6 +866,10 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage2"), 2);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage3"), 3);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage4"), 4);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage5"), 5);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage6"), 6);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage7"), 7);
+
     glUseProgram(0);
 }
 
@@ -1189,68 +1333,41 @@ void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 // cima da janela OpenGL.
 void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
 {
-    // Abaixo executamos o seguinte: caso o botão esquerdo do mouse esteja
-    // pressionado, computamos quanto que o mouse se movimento desde o último
-    // instante de tempo, e usamos esta movimentação para atualizar os
-    // parâmetros que definem a posição da câmera dentro da cena virtual.
-    // Assim, temos que o usuário consegue controlar a câmera.
+    // Câmera se move junto com o mouse do usuário
+    float dx = xpos - g_LastCursorPosX;
+    float dy = ypos - g_LastCursorPosY;
+
+    // Atualizamos parâmetros da câmera com os deslocamentos
+    g_CameraTheta += 0.01f*dx;
+    g_CameraPhi   -= 0.01f*dy;
+
+    // Em coordenadas esféricas, o ângulo phi deve ficar entre -pi/2 e +pi/2.
+    float phimax = 3.141592f/2;
+    float phimin = -phimax;
+
+    if (g_CameraPhi > phimax)
+        g_CameraPhi = phimax;
+    if (g_CameraPhi < phimin)
+        g_CameraPhi = phimin;
+
+    // Atualizamos as variáveis globais para armazenar a posição atual do
+    // cursor como sendo a última posição conhecida do cursor.
+    g_LastCursorPosX = xpos;
+    g_LastCursorPosY = ypos;
 
     if (g_LeftMouseButtonPressed)
     {
-        // Deslocamento do cursor do mouse em x e y de coordenadas de tela!
-        float dx = xpos - g_LastCursorPosX;
-        float dy = ypos - g_LastCursorPosY;
-
-        // Atualizamos parâmetros da câmera com os deslocamentos
-        g_CameraTheta += 0.01f*dx;
-        g_CameraPhi   -= 0.01f*dy;
-
-        // Em coordenadas esféricas, o ângulo phi deve ficar entre -pi/2 e +pi/2.
-        float phimax = 3.141592f/2;
-        float phimin = -phimax;
-
-        if (g_CameraPhi > phimax)
-            g_CameraPhi = phimax;
-
-        if (g_CameraPhi < phimin)
-            g_CameraPhi = phimin;
-
-        // Atualizamos as variáveis globais para armazenar a posição atual do
-        // cursor como sendo a última posição conhecida do cursor.
-        g_LastCursorPosX = xpos;
-        g_LastCursorPosY = ypos;
+        // atira
     }
 
     if (g_RightMouseButtonPressed)
     {
-        // Deslocamento do cursor do mouse em x e y de coordenadas de tela!
-        float dx = xpos - g_LastCursorPosX;
-        float dy = ypos - g_LastCursorPosY;
-
-        // Atualizamos parâmetros da antebraço com os deslocamentos
-        g_ForearmAngleZ -= 0.01f*dx;
-        g_ForearmAngleX += 0.01f*dy;
-
-        // Atualizamos as variáveis globais para armazenar a posição atual do
-        // cursor como sendo a última posição conhecida do cursor.
-        g_LastCursorPosX = xpos;
-        g_LastCursorPosY = ypos;
+        // mira?
     }
 
     if (g_MiddleMouseButtonPressed)
     {
-        // Deslocamento do cursor do mouse em x e y de coordenadas de tela!
-        float dx = xpos - g_LastCursorPosX;
-        float dy = ypos - g_LastCursorPosY;
-
-        // Atualizamos parâmetros da antebraço com os deslocamentos
-        g_TorsoPositionX += 0.01f*dx;
-        g_TorsoPositionY -= 0.01f*dy;
-
-        // Atualizamos as variáveis globais para armazenar a posição atual do
-        // cursor como sendo a última posição conhecida do cursor.
-        g_LastCursorPosX = xpos;
-        g_LastCursorPosY = ypos;
+        // zoom
     }
 }
 
@@ -1259,7 +1376,7 @@ void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 {
     // Atualizamos a distância da câmera para a origem utilizando a
     // movimentação da "rodinha", simulando um ZOOM.
-    g_CameraDistance -= 0.1f*yoffset;
+    g_CameraDistance -= 0.9f*yoffset;
 
     // Uma câmera look-at nunca pode estar exatamente "em cima" do ponto para
     // onde ela está olhando, pois isto gera problemas de divisão por zero na
@@ -1317,22 +1434,27 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
         g_AngleX = 0.0f;
         g_AngleY = 0.0f;
         g_AngleZ = 0.0f;
-        g_ForearmAngleX = 0.0f;
-        g_ForearmAngleZ = 0.0f;
-        g_TorsoPositionX = 0.0f;
-        g_TorsoPositionY = 0.0f;
     }
 
     // Se o usuário apertar a tecla P, utilizamos projeção perspectiva.
     if (key == GLFW_KEY_P && action == GLFW_PRESS)
     {
-        g_UsePerspectiveProjection = true;
+        // faz alguma coisa
     }
 
     // Se o usuário apertar a tecla O, utilizamos projeção ortográfica.
     if (key == GLFW_KEY_O && action == GLFW_PRESS)
     {
-        g_UsePerspectiveProjection = false;
+        if (!isLooking)
+        {
+            tecla_O_pressionada = true;
+            isLooking = !isLooking;
+        }
+        else
+        {
+            tecla_O_pressionada = false;
+            isLooking = !isLooking;
+        }
     }
 
     // Se o usuário apertar a tecla H, fazemos um "toggle" do texto informativo mostrado na tela.
