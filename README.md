@@ -2,7 +2,7 @@
 
 ### Trabalho Final da cadeira de Fundamentos de Computação Gráfica - semestre 2023/1
 
-#### Integrantes da dupla: Thiago Silva Olveski (323982) e Vitor Pedrollo dos Santos (312948)
+#### Integrantes da dupla: Thiago Silva Oliveski (323982) e Vitor Pedrollo dos Santos (312948)
 
 A aplicação gráfica que será desenvolvida em C++ e OpenGL para o trabalho final consiste em um jogo FPS/Tower Defense inspirado pelos jogos Risk of Rain 2 e Deep Rock Galactic.
 
