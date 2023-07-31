@@ -69,21 +69,14 @@ void main()
     vec4 n = normalize(normal);
 
     // Vetor que define o sentido da fonte de luz em relação ao ponto atual.
-    vec4 l = normalize(vec4(0.0, 1.0, 0.0, 0.0));
-    // Ponto onde está localizada a fonte de luz spotlight
-    vec4 l_spot = vec4(0.0f, 2.0f, 1.0f, 1.0f);
-    // Vetor que define o sentido da fonte de luz spotlight em relação ao ponto atual
-    vec4 L = normalize(l_spot - p);
+    vec4 l = normalize(vec4(0.0, 1.0, 0.5, 0.0));
     // Vetor que define o sentido da câmera em relação ao ponto atual.
     vec4 v = normalize(camera_position - p);
-    // Vetor que define o sentido da iluminação spotlight
-    vec4 V = normalize(vec4(0.0f, -1.0f, 0.0f, 0.0f));
+    // Half vector para cálculo do termo de Blinn-Phong
+    vec4 h = normalize(v+l);
+
 
     // Vetor que define o sentido da reflexão especular ideal.
-
-    // PARA SPOTLIGHT
-    // vec4 r = -L+2*n*(dot(n, L));
-    // PARA ILUMINAÇÃO LOCAL
     vec4 r = -l+2*n*(dot(n, l));
 
     // Coordenadas de textura U e V
@@ -106,8 +99,13 @@ void main()
         p_U = (atan(vecp[0], vecp[2]) + M_PI)/(2*M_PI);
         p_V = (asin(vecp[1]) + M_PI_2)/M_PI;
     }
-    else if ( object_id == BUNNY || object_id == PLANE )
+    else if ( object_id == BUNNY)
     {
+        Kd = vec3(0.008,0.4,0.8);
+        Ks = vec3(0.8,0.8,0.8);
+        Ka = vec3(0.004,0.2,0.4);
+        q = 32.0;
+
         // PARA TEXTURA
         float minx = bbox_min.x;
         float maxx = bbox_max.x;
@@ -118,28 +116,29 @@ void main()
         float minz = bbox_min.z;
         float maxz = bbox_max.z;
 
-        if ( object_id == BUNNY)
-        {
-            p_U = (position_model.x - minx)/(maxx - minx);
-            p_V = (position_model.y - miny)/(maxy - miny);
-        }
-        else
-        {
-            p_U = (position_model.x - minx)/(maxx - minx);
-            p_V = (position_model.z - minz)/(maxz - minz);
-        }
+        p_U = (position_model.x - minx)/(maxx - minx);
+        p_V = (position_model.y - miny)/(maxy - miny);
+
     }
     else if ( object_id == LIBERTY || object_id == MONSTER || object_id == ROCK || object_id == HAND )
     {
-        // PARA TEXTURA
         // Coordenadas de textura da estatua, monstro ou pedra, obtidas dos arquivos OBJ.
         p_U = texcoords.x;
         p_V = texcoords.y;
     }
+    else if ( object_id == PLANE )
+    {
+        // Coordenadas do plano, obtidas dos arquivos OBJ.
+        // multiplicação por 10 para forçar as coordenadas a sairem do intervalo [0, 1]
+        // e serem repetidas pelo parâmetro de texture wrapping GL_MIRRORED_REPEAT
+        // FONTE: https://chat.openai.com/share/42510b6c-c0f9-4300-a068-26b80603551c
+        p_U = texcoords.x * 10;
+        p_V = texcoords.y * 10;
+    }
     else // Objeto desconhecido = preto
     {
-        p_U = texcoords.x;
-        p_V = texcoords.y;
+        p_U = 0.0f;
+        p_V = 0.0f;
     }
 
     // Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
@@ -149,32 +148,26 @@ void main()
     if (object_id == MONSTER)
     {
         Kd0 = texture(TextureImage2, vec2(p_U, p_V)).rgb;
-        Kd1 = vec3(0.0f, 0.0f, 0.0f);
     }
     else if (object_id == LIBERTY)
     {
         Kd0 = texture(TextureImage3, vec2(p_U, p_V)).rgb;
-        Kd1 = vec3(0.0f, 0.0f, 0.0f);
     }
     else if (object_id == PLANE)
     {
         Kd0 = texture(TextureImage4, vec2(p_U, p_V)).rgb;
-        Kd1 = vec3(0.0f, 0.0f, 0.0f);
     }
     else if (object_id == SPHERE)
     {
         Kd0 = texture(TextureImage5, vec2(p_U, p_V)).rgb;
-        Kd1 = vec3(0.0f, 0.0f, 0.0f);
     }
     else if (object_id == ROCK)
     {
         Kd0 = texture(TextureImage6, vec2(p_U, p_V)).rgb;
-        Kd1 = vec3(0.0f, 0.0f, 0.0f);
     }
     else if (object_id == HAND)
     {
         Kd0 = texture(TextureImage7, vec2(p_U, p_V)).rgb;
-        Kd1 = vec3(0.0f, 0.0f, 0.0f);
     }
 
     // Espectro da fonte de iluminação
@@ -189,20 +182,13 @@ void main()
     // Termo difuso utilizando a lei dos cossenos de Lambert
     // PARA ILUMINAÇÃO LOCAL
     // vec3 lambert_diffuse_term = Kd*I*max(0.0, dot(n,l));
-    // PARA SPOTLIGHT
-    // vec3 lambert_diffuse_term = Kd*I*max(0.0, dot(n, L));
-    // PARA TEXTURA
     float lambert = max(0, dot(n, l));
+    float invlambert = max(0, dot(-n, l));
 
     // Termo especular utilizando o modelo de iluminação de Phong
     // PARA ILUMINAÇÃO LOCAL
     // vec3 phong_specular_term  = Ks*I*max(0.0, pow(dot(r, v), q));
-    // PARA SPOTLIGHT
-    // vec3 phong_specular_term  = Ks*I*max(0.0, pow(dot(r, v), q));
-
-    // PARA SPOTLIGHT
-    // float alpha = 3.141592/6;
-    // float beta = dot((normalize(p - l_spot)), V);
+    vec3 blinn_phong_specular_term = Ks*I*max(0.0, pow(dot(n, h), q));
 
     // NOTE: Se você quiser fazer o rendering de objetos transparentes, é
     // necessário:
@@ -223,17 +209,10 @@ void main()
     // PARA ILUMINAÇÃO LOCAL
     // color.rgb = lambert_diffuse_term + ambient_term + phong_specular_term;
     // PARA TEXTURA
-    color.rgb = Kd0 * (lambert + 0.1) + (Kd1 * 0.25) ;
-
-    // PARA SPOTLIGHT
-    /*if (beta > cos(alpha))
-    {
-        color.rgb = lambert_diffuse_term + ambient_term + phong_specular_term;
-    }
+    if (object_id == BUNNY)
+        color.rgb = Kd0 * (lambert + 0.1) + Kd1 * (invlambert + 0.25) + blinn_phong_specular_term;
     else
-    {
-        color.rgb = ambient_term;
-    }*/
+        color.rgb = Kd0 * (lambert + 0.1);
 
     // Cor final com correção gamma, considerando monitor sRGB.
     // Veja https://en.wikipedia.org/w/index.php?title=Gamma_correction&oldid=751281772#Windows.2C_Mac.2C_sRGB_and_TV.2Fvideo_standard_gammas

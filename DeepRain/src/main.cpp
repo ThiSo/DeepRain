@@ -248,7 +248,7 @@ float monster_angle = 3.141592f/2;
 glm::vec4 camera_view_vector;
 glm::vec4 camera_position_c = glm::vec4(0.0f, 1.0f, 2.0f, 1.0f);
 glm::vec4 monster_position = glm::vec4(4.0f, 0.6f, -15.0f, 1.0f);
-glm::vec4 hand_position;
+glm::vec4 hand_position = camera_position_c;
 
 // Número de texturas carregadas pela função LoadTextureImage()
 GLuint g_NumLoadedTextures = 0;
@@ -427,7 +427,7 @@ int main(int argc, char* argv[])
         float x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
 
         glm::vec4 camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
-        camera_view_vector = glm::vec4(x, y, -z, 0.0f); // Vetor "view", sentido para onde a câmera está virada
+        camera_view_vector = glm::vec4(x, y, -z, 0.0f);                // Vetor "view", sentido para onde a câmera está virada
 
         if (length(camera_position_c - monster_position) < 15.0f) proximo = true;
         else
@@ -502,9 +502,6 @@ int main(int argc, char* argv[])
             camera_position_c += u * speed * delta_t;
         }
 
-        // atualiza a posição da mão do jogador com base na nova posição
-        hand_position = glm::vec4(camera_position_c.x + 0.125, camera_position_c.y - 0.125, camera_position_c.z - 0.25, 1.0f);
-
         // Computamos a matriz "View" utilizando os parâmetros da câmera para
         // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
         glm::mat4 view = Matrix_Camera_View(camera_position_c, camera_view_vector, camera_up_vector);
@@ -551,7 +548,7 @@ int main(int argc, char* argv[])
 
         // Desenhamos o plano
         model = Matrix_Translate(0.0f,-1.0f,0.0f)
-              * Matrix_Scale(5.0f, 5.0f, 5.0f);
+              * Matrix_Scale(100.0f, 1.0f, 100.0f);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, PLANE);
         DrawVirtualObject("the_plane");
@@ -573,11 +570,13 @@ int main(int argc, char* argv[])
         glUniform1i(g_object_id_uniform, MONSTER);
         DrawVirtualObject("the_monster");
 
+        // atualiza a posição da mão do jogador com base na nova posição
+        hand_position = camera_position_c + 0.1f * camera_view_vector;
+
         // Desenhamos a mão
-        model = Matrix_Translate(hand_position.x, hand_position.y, hand_position.z)
+        model = Matrix_Translate(hand_position.x + 0.150, hand_position.y - 0.160, hand_position.z)
               * Matrix_Scale(0.125f, 0.125f, 0.125f)
-              * Matrix_Rotate_Z(3.141592f/6)
-              * Matrix_Rotate_X(-3.141592f/2);
+              * Matrix_Rotate_X(-3.141592f/2);  // "Deita" a mão
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, HAND);
         DrawVirtualObject("the_hand");
@@ -675,8 +674,8 @@ void LoadTextureImage(const char* filename)
     glGenSamplers(1, &sampler_id);
 
     // Veja slides 95-96 do documento Aula_20_Mapeamento_de_Texturas.pdf
-    glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+    glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
 
     // Parâmetros de amostragem da textura.
     glSamplerParameteri(sampler_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -691,8 +690,8 @@ void LoadTextureImage(const char* filename)
     GLuint textureunit = g_NumLoadedTextures;
     glActiveTexture(GL_TEXTURE0 + textureunit);
     glBindTexture(GL_TEXTURE_2D, texture_id);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
     glGenerateMipmap(GL_TEXTURE_2D);
     glBindSampler(textureunit, sampler_id);
@@ -740,15 +739,15 @@ GLuint BuildTrianglesForCrosshair()
 {
 
     GLfloat NDC_coefficients[] = {
-        -0.05f,  0.0125f, 0.0f, 1.0f, // posição do vértice 0
-         0.05f,  0.0125f, 0.0f, 1.0f, // posição do vértice 1
-         0.05f, -0.0125f, 0.0f, 1.0f, // posição do vértice 2
-        -0.05f, -0.0125f, 0.0f, 1.0f, // posição do vértice 3
+        -0.025f,  0.00625f, 0.0f, 1.0f, // posição do vértice 0
+         0.025f,  0.00625f, 0.0f, 1.0f, // posição do vértice 1
+         0.025f, -0.00625f, 0.0f, 1.0f, // posição do vértice 2
+        -0.025f, -0.00625f, 0.0f, 1.0f, // posição do vértice 3
 
-        -0.0125f,  0.05f, 0.0f, 1.0f, // posição do vértice 4
-         0.0125f,  0.05f, 0.0f, 1.0f, // posição do vértice 5
-         0.0125f, -0.05f, 0.0f, 1.0f, // posição do vértice 6
-        -0.0125f, -0.05f, 0.0f, 1.0f, // posição do vértice 7
+        -0.00625f,  0.025f, 0.0f, 1.0f, // posição do vértice 4
+         0.00625f,  0.025f, 0.0f, 1.0f, // posição do vértice 5
+         0.00625f, -0.025f, 0.0f, 1.0f, // posição do vértice 6
+        -0.00625f, -0.025f, 0.0f, 1.0f, // posição do vértice 7
     };
 
     GLuint VBO_NDC_coefficients_id;
@@ -776,9 +775,9 @@ GLuint BuildTrianglesForCrosshair()
     GLfloat color_coefficients[32] = {};
 
     for (int i=0; i<32; i+=4){
-        color_coefficients[i] = 1.0f;
-        color_coefficients[i+1] = 1.0f;
-        color_coefficients[i+2] = 1.0f;
+        color_coefficients[i] = .0f;
+        color_coefficients[i+1] = .0f;
+        color_coefficients[i+2] = .0f;
         color_coefficients[i+3] = 1.0f;
     };
 
