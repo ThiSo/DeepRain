@@ -16,6 +16,7 @@
 //    #include <cstdio> // Em C++
 //
 #define STB_IMAGE_IMPLEMENTATION
+
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -56,10 +57,14 @@
 #define MONSTER 4
 #define ROCK 5
 #define HAND 6
+#define FLYMONSTER 7
 
 // Prints para debugging
 #include "iostream"
 using namespace std;
+
+#include "collisions.h"
+#include "bezier.h"
 
 // Estrutura que representa um modelo geométrico carregado a partir de um
 // arquivo ".obj". Veja https://en.wikipedia.org/wiki/Wavefront_.obj_file .
@@ -235,8 +240,8 @@ bool tecla_A_pressionada = false;
 bool tecla_S_pressionada = false;
 bool tecla_D_pressionada = false;
 bool tecla_O_pressionada = false;
-bool isLooking = false;
 
+bool isLooking = false;
 bool proximo = false;
 
 float delta_t = 0.0f;
@@ -249,6 +254,11 @@ glm::vec4 camera_view_vector;
 glm::vec4 camera_position_c = glm::vec4(0.0f, 1.0f, 2.0f, 1.0f);
 glm::vec4 monster_position = glm::vec4(4.0f, 0.6f, -15.0f, 1.0f);
 glm::vec4 hand_position = camera_position_c;
+
+glm::vec3 ponto_controle_1 = glm::vec3(-7.0f, 6.0f, -10.0f);
+glm::vec3 ponto_controle_2 = glm::vec3(-7.0f, 6.0f, 10.0f);
+glm::vec3 ponto_controle_3 = glm::vec3( 7.0f, 6.0f, -10.0f);
+glm::vec3 ponto_controle_4 = glm::vec3( 7.0f, 6.0f, 10.0f);
 
 // Número de texturas carregadas pela função LoadTextureImage()
 GLuint g_NumLoadedTextures = 0;
@@ -340,6 +350,7 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/tc-skydome.jpg");                   // TextureImage5
     LoadTextureImage("../../data/tc-rock.jpg");                      // TextureImage6
     LoadTextureImage("../../data/tc-hand.jpg");                      // TextureImage7
+    LoadTextureImage("../../data/tc-flymonster.jpg");                // TextureImage8
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -370,6 +381,10 @@ int main(int argc, char* argv[])
     ComputeNormals(&handmodel);
     BuildTrianglesAndAddToVirtualScene(&handmodel);
 
+    ObjModel flymonstermodel("../../data/flymonster.obj");
+    ComputeNormals(&flymonstermodel);
+    BuildTrianglesAndAddToVirtualScene(&flymonstermodel);
+
     if ( argc > 1 )
     {
         ObjModel model(argv[1]);
@@ -392,9 +407,17 @@ int main(int argc, char* argv[])
 
     // adições pra atualização da câmera
     float speed = 5.0f; // Velocidade da câmera
-    float monster_speed = 2.0f;
     float prev_time = (float)glfwGetTime();
+
+    float monster_speed = 2.0f;
+
+    float prevx_camera_position_c;
     float prevy_camera_position_c;
+    float prevz_camera_position_c;
+
+    bool volta = false;
+
+    float t = 0.0f;     // Parâmetro de interpolação da curva de beziér
 
     // Ficamos em um loop infinito, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
@@ -471,36 +494,40 @@ int main(int argc, char* argv[])
         w = w / norm(w);
         u = u / norm(u);
 
-        // Realiza movimentação de objetos
+        /////////////////// MOVIMENTAÇÃO /////////////////////////////////////////
+
+        prevx_camera_position_c = camera_position_c.x;
+        prevy_camera_position_c = camera_position_c.y;
+        prevz_camera_position_c = camera_position_c.z;
+
+        // Realiza movimentação do jogador
         if (tecla_W_pressionada)
-        {
-            // Movimenta câmera para frente
-            prevy_camera_position_c = camera_position_c.y;
             camera_position_c += -w * speed * delta_t;
-            if (camera_position_c.y > 0.0f || camera_position_c.y < -0.01f)
-                camera_position_c.y = prevy_camera_position_c;
-        }
 
         if (tecla_A_pressionada)
-        {
-            // Movimenta câmera para esquerda
             camera_position_c += -u * speed * delta_t;
-        }
 
         if (tecla_S_pressionada)
-        {
-            // Movimenta câmera para trás
-            prevy_camera_position_c = camera_position_c.y;
             camera_position_c += w * speed * delta_t;
-            if (camera_position_c.y > 0.0f || camera_position_c.y < -0.01f)
-                camera_position_c.y = prevy_camera_position_c;
-        }
 
         if (tecla_D_pressionada)
-        {
-            // Movimenta câmera para direita
             camera_position_c += u * speed * delta_t;
+
+        // Checa colisões após o jogador ter se movimentado
+        if (ColisaoPontoPlano(camera_position_c, glm::vec4(0.0f, 1.0f, 0.0f, 0.0f)))
+            camera_position_c.y = prevy_camera_position_c;
+
+        if (ColisaoPontoEsfera(camera_position_c, glm::vec4(-2.0f, 0.5f, 5.0f, 1.0f), 2.0f))
+        {
+            camera_position_c.x = prevx_camera_position_c;
+            camera_position_c.z = prevz_camera_position_c;
         }
+
+        if (ColisaoEsferaEsfera(glm::vec4(camera_position_c.x, camera_position_c.y, camera_position_c.z, 1.0f), 1.0f,
+                                glm::vec4(-2.0f, 0.5f, 5.0f, 1.0f), 2.0f))
+            cout << "Colisao";
+
+        //////////////////////////////////////////////////////////////////////////
 
         // Computamos a matriz "View" utilizando os parâmetros da câmera para
         // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
@@ -527,17 +554,41 @@ int main(int argc, char* argv[])
         glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
         glUniformMatrix4fv(g_projection_uniform , 1 , GL_FALSE , glm::value_ptr(projection));
 
-        // Desenhamos o modelo da esfera
-        model = Matrix_Translate(camera_position_c.x, camera_position_c.y, camera_position_c.z);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, SPHERE);
-        glDisable(GL_CULL_FACE);
-        glDisable(GL_DEPTH_TEST);
-        DrawVirtualObject("the_sphere");
-        glEnable(GL_CULL_FACE);
-        glEnable(GL_DEPTH_TEST);
+        /////////////////// ESFERAS //////////////////////////////////////////////
 
-        // Desenhamos o modelo do coelho
+        for(int i=0; i<3; i++)
+        {
+            if (i==0)
+            {
+                model = Matrix_Translate(camera_position_c.x, camera_position_c.y, camera_position_c.z);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, SPHERE);
+                glDisable(GL_CULL_FACE);
+                glDisable(GL_DEPTH_TEST);
+                DrawVirtualObject("the_sphere");
+                glEnable(GL_CULL_FACE);
+                glEnable(GL_DEPTH_TEST);
+            }
+            else if (i==1)
+            {
+                model = Matrix_Translate(-2.0f, 0.5f, 5.0f);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, SPHERE);
+                DrawVirtualObject("the_sphere");
+            }
+            else
+            {
+                model = Matrix_Translate(camera_position_c.x, camera_position_c.y, camera_position_c.z);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, SPHERE);
+                DrawVirtualObject("the_sphere");
+            }
+        }
+
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// COELHO ///////////////////////////////////////////////
+
         model = Matrix_Translate(2.0f,0.0f,0.0f)
               * Matrix_Rotate_Z(g_AngleZ)
               * Matrix_Rotate_Y(g_AngleY)
@@ -546,14 +597,20 @@ int main(int argc, char* argv[])
         glUniform1i(g_object_id_uniform, BUNNY);
         DrawVirtualObject("the_bunny");
 
-        // Desenhamos o plano
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// PLANO ////////////////////////////////////////////////
+
         model = Matrix_Translate(0.0f,-1.0f,0.0f)
               * Matrix_Scale(100.0f, 1.0f, 100.0f);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, PLANE);
         DrawVirtualObject("the_plane");
 
-        // Desenhamos a estatua da liberdade
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// LIBERDADE ////////////////////////////////////////////
+
         model = Matrix_Translate(0.0f, 4.0f, -8.0f)
               * Matrix_Scale(4.0f, 4.0f, 4.0f)
               * Matrix_Rotate_Y(3.141592f/2);
@@ -561,7 +618,10 @@ int main(int argc, char* argv[])
         glUniform1i(g_object_id_uniform, LIBERTY);
         DrawVirtualObject("the_liberty");
 
-        // Desenhamos o monstro
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// MONSTRO //////////////////////////////////////////////
+
         model = Matrix_Translate(monster_position.x, monster_position.y, monster_position.z)
               * Matrix_Scale(2.0f, 2.0f, 2.0f)
               * Matrix_Rotate_X(3.141592f/16)
@@ -570,10 +630,12 @@ int main(int argc, char* argv[])
         glUniform1i(g_object_id_uniform, MONSTER);
         DrawVirtualObject("the_monster");
 
-        // atualiza a posição da mão do jogador com base na nova posição
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// MÃO //////////////////////////////////////////////////
+
         hand_position = camera_position_c + 0.1f * camera_view_vector;
 
-        // Desenhamos a mão
         model = Matrix_Translate(hand_position.x + 0.150, hand_position.y - 0.160, hand_position.z)
               * Matrix_Scale(0.125f, 0.125f, 0.125f)
               * Matrix_Rotate_X(-3.141592f/2);  // "Deita" a mão
@@ -581,7 +643,10 @@ int main(int argc, char* argv[])
         glUniform1i(g_object_id_uniform, HAND);
         DrawVirtualObject("the_hand");
 
-        // Desenhamos multiplas pedras a partir do mesmo objeto
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// PEDRAS ///////////////////////////////////////////////
+
         for (int i=0; i<4; i++)
         {
             if (i == 0 || i == 1)
@@ -600,6 +665,32 @@ int main(int argc, char* argv[])
             glUniform1i(g_object_id_uniform, ROCK);
             DrawVirtualObject("the_rock");
         }
+
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// BEZIER ///////////////////////////////////////////////
+
+        // Calcula a posição atual do objeto na curva de Bezier
+        glm::vec3 posicao_curva = CalculaBezier(t, ponto_controle_1, ponto_controle_2, ponto_controle_3, ponto_controle_4);
+
+        model = Matrix_Translate(posicao_curva.x, posicao_curva.y, posicao_curva.z);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, FLYMONSTER);
+        DrawVirtualObject("the_flymonster");
+
+        // Incremento para que o objeto se mova na curva
+        if (!volta)
+            t += 0.008f;
+        else
+            t -= 0.008f;
+
+        // Resete o parâmetro de interpolação para reiniciar o movimento ao completar a curva
+        if (t > 1.0f)
+            volta = true;
+        if (t < 0.0f)
+            volta = false;
+
+        //////////////////////////////////////////////////////////////////////////
 
         // Imprimimos na tela os ângulos de Euler que controlam a rotação do
         // terceiro cubo.
@@ -868,6 +959,7 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage5"), 5);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage6"), 6);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage7"), 7);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage8"), 8);
 
     glUseProgram(0);
 }

@@ -26,6 +26,7 @@ uniform mat4 projection;
 #define MONSTER 4
 #define ROCK 5
 #define HAND 6
+#define FLYMONSTER 7
 
 uniform int object_id;
 
@@ -42,6 +43,7 @@ uniform sampler2D TextureImage4; //GRASS
 uniform sampler2D TextureImage5; //SKY
 uniform sampler2D TextureImage6; //ROCK
 uniform sampler2D TextureImage7; //HAND
+uniform sampler2D TextureImage8; //FLYMONSTER
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec4 color;
@@ -120,7 +122,7 @@ void main()
         p_V = (position_model.y - miny)/(maxy - miny);
 
     }
-    else if ( object_id == LIBERTY || object_id == MONSTER || object_id == ROCK || object_id == HAND )
+    else if ( object_id == LIBERTY || object_id == MONSTER || object_id == ROCK || object_id == HAND || object_id == FLYMONSTER)
     {
         // Coordenadas de textura da estatua, monstro ou pedra, obtidas dos arquivos OBJ.
         p_U = texcoords.x;
@@ -131,7 +133,6 @@ void main()
         // Coordenadas do plano, obtidas dos arquivos OBJ.
         // multiplicação por 10 para forçar as coordenadas a sairem do intervalo [0, 1]
         // e serem repetidas pelo parâmetro de texture wrapping GL_MIRRORED_REPEAT
-        // FONTE: https://chat.openai.com/share/42510b6c-c0f9-4300-a068-26b80603551c
         p_U = texcoords.x * 10;
         p_V = texcoords.y * 10;
     }
@@ -168,6 +169,10 @@ void main()
     else if (object_id == HAND)
     {
         Kd0 = texture(TextureImage7, vec2(p_U, p_V)).rgb;
+    }
+    else if (object_id == FLYMONSTER)
+    {
+        Kd0 = texture(TextureImage8, vec2(p_U, p_V)).rgb;
     }
 
     // Espectro da fonte de iluminação
