@@ -368,6 +368,10 @@
 		<Unit filename="include/matrices.h" />
 		<Unit filename="include/tiny_obj_loader.h" />
 		<Unit filename="include/utils.h" />
+		<Unit filename="src/bezier.cpp" />
+		<Unit filename="src/bezier.h" />
+		<Unit filename="src/collisions.cpp" />
+		<Unit filename="src/collisions.h" />
 		<Unit filename="src/glad.c">
 			<Option compilerVar="CC" />
 		</Unit>

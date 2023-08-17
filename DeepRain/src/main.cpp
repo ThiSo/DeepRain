@@ -16,6 +16,7 @@
 //    #include <cstdio> // Em C++
 //
 #define STB_IMAGE_IMPLEMENTATION
+
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -49,17 +50,24 @@
 #include "matrices.h"
 
 // Defines para os objetos
-#define SPHERE 0
+#define SKYBOX 0
 #define BUNNY  1
 #define PLANE  2
 #define LIBERTY 3
 #define MONSTER 4
 #define ROCK 5
-#define HAND 6
+#define FLYMONSTER 6
+#define SPACESHIP 7
+#define MOUNT 8
+#define BULLETS 9
+#define HITBOX 10
 
 // Prints para debugging
 #include "iostream"
 using namespace std;
+
+#include "collisions.h"
+#include "bezier.h"
 
 // Estrutura que representa um modelo geométrico carregado a partir de um
 // arquivo ".obj". Veja https://en.wikipedia.org/wiki/Wavefront_.obj_file .
@@ -136,7 +144,6 @@ GLuint LoadShader_Vertex(const char* filename);   // Carrega um vertex shader
 GLuint LoadShader_Fragment(const char* filename); // Carrega um fragment shader
 void LoadShader(const char* filename, GLuint shader_id); // Função utilizada pelas duas acima
 GLuint CreateGpuProgram(GLuint vertex_shader_id, GLuint fragment_shader_id); // Cria um programa de GPU
-void PrintObjModelInfo(ObjModel*); // Função para debugging
 
 // Declaração de funções auxiliares para renderizar texto dentro da janela
 // OpenGL. Estas funções estão definidas no arquivo "textrendering.cpp".
@@ -153,8 +160,9 @@ void TextRendering_PrintMatrixVectorProductDivW(GLFWwindow* window, glm::mat4 M,
 // Funções abaixo renderizam como texto na janela OpenGL algumas matrizes e
 // outras informações do programa. Definidas após main().
 void TextRendering_ShowModelViewProjection(GLFWwindow* window, glm::mat4 projection, glm::mat4 view, glm::mat4 model, glm::vec4 p_model);
-void TextRendering_ShowEulerAngles(GLFWwindow* window);
-void TextRendering_ShowProjection(GLFWwindow* window);
+void TextRendering_ShowBullets(GLFWwindow* window);
+void TextRendering_ShowLifes(GLFWwindow* window);
+void TextRendering_ShowPieces(GLFWwindow* window);
 void TextRendering_ShowFramesPerSecond(GLFWwindow* window);
 
 // Funções callback para comunicação com o sistema operacional e interação do
@@ -190,6 +198,26 @@ std::map<std::string, SceneObject> g_VirtualScene;
 // Pilha que guardará as matrizes de modelagem.
 std::stack<glm::mat4>  g_MatrixStack;
 
+// Classe / Vector para armazenar projéteis
+class Projectile {
+    public:
+        glm::vec3 position;
+        glm::vec3 speed;
+        bool is_active;
+
+        Projectile() : is_active(false) {}
+};
+
+std::vector<Projectile> shot;
+
+int num_shots = 6;
+bool reload = false;
+
+int num_lifes = 3;
+int monster_lifes = 3;
+
+int pieces = 0;
+
 // def do vetor de indices
 typedef GLubyte index_type;
 
@@ -200,6 +228,8 @@ float g_ScreenRatio = 1.0f;
 float g_AngleX = 0.0f;
 float g_AngleY = 0.0f;
 float g_AngleZ = 0.0f;
+bool jump = false;
+bool go_down = false;
 
 // "g_LeftMouseButtonPressed = true" se o usuário está com o botão esquerdo do mouse
 // pressionado no momento atual. Veja função MouseButtonCallback().
@@ -235,20 +265,32 @@ bool tecla_A_pressionada = false;
 bool tecla_S_pressionada = false;
 bool tecla_D_pressionada = false;
 bool tecla_O_pressionada = false;
-bool isLooking = false;
 
+bool isLooking = false;
 bool proximo = false;
 
 float delta_t = 0.0f;
 float g_Theta = 3.141592f / 4;
 float g_Phi = 3.141592f / 6;
 
-float monster_angle = 3.141592f/2;
-
 glm::vec4 camera_view_vector;
 glm::vec4 camera_position_c = glm::vec4(0.0f, 1.0f, 2.0f, 1.0f);
-glm::vec4 monster_position = glm::vec4(4.0f, 0.6f, -15.0f, 1.0f);
-glm::vec4 hand_position = camera_position_c;
+glm::vec4 monster_position = glm::vec4(-30.0f, 0.6f, -30.0f, 1.0f);
+
+bool ciclo_voo = true;
+glm::vec3 posicao_curva;
+
+// Pontos de controle da primeira curva de beziér
+glm::vec3 ponto_controle_1 = glm::vec3(40.0f, 10.0f, 70.0f);
+glm::vec3 ponto_controle_2 = glm::vec3(52.0f, 35.0f, 40.0f);
+glm::vec3 ponto_controle_3 = glm::vec3(70.0f, 50.0f, 70.0f);
+glm::vec3 ponto_controle_4 = glm::vec3(85.0f, 20.0f, 40.0f);
+
+// Pontos de controle da segunda curva de beziér
+glm::vec3 ponto_controle_5 = glm::vec3(85.0f, 20.0f, 40.0f);
+glm::vec3 ponto_controle_6 = glm::vec3(60.0f, 35.0f, 10.0f);
+glm::vec3 ponto_controle_7 = glm::vec3(20.0f, 50.0f, 10.0f);
+glm::vec3 ponto_controle_8 = glm::vec3(40.0f, 10.0f, 70.0f);
 
 // Número de texturas carregadas pela função LoadTextureImage()
 GLuint g_NumLoadedTextures = 0;
@@ -339,7 +381,10 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/tc-grass.jpg");                     // TextureImage4
     LoadTextureImage("../../data/tc-skydome.jpg");                   // TextureImage5
     LoadTextureImage("../../data/tc-rock.jpg");                      // TextureImage6
-    LoadTextureImage("../../data/tc-hand.jpg");                      // TextureImage7
+    LoadTextureImage("../../data/tc-flymonster.jpg");                // TextureImage7
+    LoadTextureImage("../../data/tc-spaceship.jpg");                 // TextureImage8
+    LoadTextureImage("../../data/tc-mount.jpg");                     // TextureImage9
+    LoadTextureImage("../../data/tc-bullet.jpg");                    // TextureImage10
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -366,9 +411,21 @@ int main(int argc, char* argv[])
     ComputeNormals(&rockmodel);
     BuildTrianglesAndAddToVirtualScene(&rockmodel);
 
-    ObjModel handmodel("../../data/hand.obj");
-    ComputeNormals(&handmodel);
-    BuildTrianglesAndAddToVirtualScene(&handmodel);
+    ObjModel flymonstermodel("../../data/flymonster.obj");
+    ComputeNormals(&flymonstermodel);
+    BuildTrianglesAndAddToVirtualScene(&flymonstermodel);
+
+    ObjModel shipmodel("../../data/spaceship.obj");
+    ComputeNormals(&shipmodel);
+    BuildTrianglesAndAddToVirtualScene(&shipmodel);
+
+    ObjModel mountmodel("../../data/mount.obj");
+    ComputeNormals(&mountmodel);
+    BuildTrianglesAndAddToVirtualScene(&mountmodel);
+
+    ObjModel bulletmodel("../../data/sphere.obj");
+    ComputeNormals(&bulletmodel);
+    BuildTrianglesAndAddToVirtualScene(&bulletmodel);
 
     if ( argc > 1 )
     {
@@ -391,10 +448,18 @@ int main(int argc, char* argv[])
     glFrontFace(GL_CCW);
 
     // adições pra atualização da câmera
-    float speed = 5.0f; // Velocidade da câmera
-    float monster_speed = 2.0f;
+    float speed = 10.0f; // Velocidade da câmera
     float prev_time = (float)glfwGetTime();
+
+    float monster_speed = 2.0f;
+    float monster_angle = 0.0f;
+    float fly_monster_angle = 0.0f;
+
+    float prevx_camera_position_c;
     float prevy_camera_position_c;
+    float prevz_camera_position_c;
+
+    float t = 0.0f;     // Parâmetro de interpolação da curva de beziér
 
     // Ficamos em um loop infinito, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
@@ -429,7 +494,73 @@ int main(int argc, char* argv[])
         glm::vec4 camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
         camera_view_vector = glm::vec4(x, y, -z, 0.0f);                // Vetor "view", sentido para onde a câmera está virada
 
-        if (length(camera_position_c - monster_position) < 15.0f) proximo = true;
+        glm::vec4 w = - camera_view_vector;
+        glm::vec4 u = crossproduct(camera_up_vector, w);
+        w = w / norm(w);
+        u = u / norm(u);
+
+        /////////////////// MOVIMENTAÇÃO /////////////////////////////////////////
+
+        prevx_camera_position_c = camera_position_c.x;
+        prevy_camera_position_c = camera_position_c.y;
+        prevz_camera_position_c = camera_position_c.z;
+
+        // Realiza movimentação do jogador
+        if (num_lifes > 0)
+        {
+            if (tecla_W_pressionada)
+            camera_position_c += -w * speed * delta_t;
+
+            if (tecla_A_pressionada)
+                camera_position_c += -u * speed * delta_t;
+
+            if (tecla_S_pressionada)
+                camera_position_c += w * speed * delta_t;
+
+            if (tecla_D_pressionada)
+                camera_position_c += u * speed * delta_t;
+        }
+
+        /*
+        if (go_down)
+        {
+            camera_position_c.y -= 1.0f;
+            go_down = false;
+        }
+
+        if (jump)
+        {
+            camera_position_c.y += 1.0f;
+            go_down = true;
+        }
+        */
+
+        // Checa colisões após o jogador ter se movimentado
+        if (ColisaoPontoPlano(camera_position_c, glm::vec4(0.0f, 1.0f, 0.0f, 0.0f)))
+        {
+            // cout << "Colisao";
+            camera_position_c.y = prevy_camera_position_c;
+        }
+
+        if (ColisaoPontoEsfera(camera_position_c, monster_position, 2.0f) && monster_lifes > 0)
+        {
+            // Se o jogador for atingido pelo monstro, perde uma vida
+            num_lifes--;
+            if (num_lifes < 0)
+                num_lifes = 0;
+
+            // Reposiciona o jogador caso ele tome dano
+            camera_position_c.x = prevx_camera_position_c + 2.0f;
+            camera_position_c.z = prevz_camera_position_c + 2.0f;
+        }
+
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// MOVIMENTAÇÃO MONSTRO /////////////////////////////////
+
+        // Checa se o jogador se aproximou o suficiente do monstro para que este o note
+        if
+            (length(camera_position_c - monster_position) < 15.0f) proximo = true;
         else
         {
             proximo = false;
@@ -440,67 +571,31 @@ int main(int argc, char* argv[])
         // Se o jogador se aproximar do monstro, este o persegue
         if (proximo)
         {
-            if (tecla_O_pressionada)
+            // Atualiza a rotação do monstro pra sempre estar olhando pro jogador
+            monster_angle = -atan2(monster_position.z - camera_position_c.z, monster_position.x - camera_position_c.x);
+
+            if (tecla_O_pressionada && monster_lifes > 0)
                 camera_view_vector = monster_position - camera_position_c;
             else
                 camera_view_vector = glm::vec4(x, y, -z, 0.0f);
 
-            if (camera_position_c.x - 2.0f < monster_position.x)
-            {
+            if (camera_position_c.x - 1.25f < monster_position.x)
                 monster_position.x -= monster_speed * delta_t;
-                monster_angle -= 0.01*3.141592f/2;
-            }
-            if (camera_position_c.x + 2.0f> monster_position.x)
-            {
+
+            if (camera_position_c.x + 1.25f> monster_position.x)
                 monster_position.x += monster_speed  * delta_t;
-                monster_angle += 0.01*3.141592f/2;
-            }
-            if (camera_position_c.z - 2.0f < monster_position.z)
-            {
+
+            if (camera_position_c.z - 1.25f < monster_position.z)
                 monster_position.z -= monster_speed  * delta_t;
-            }
-            if (camera_position_c.z + 2.0f > monster_position.z)
-            {
+
+            if (camera_position_c.z + 1.25f > monster_position.z)
                 monster_position.z += monster_speed  * delta_t;
-            }
 
         }
 
-        glm::vec4 w = - camera_view_vector;
-        glm::vec4 u = crossproduct(camera_up_vector, w);
-        w = w / norm(w);
-        u = u / norm(u);
+        //////////////////////////////////////////////////////////////////////////
 
-        // Realiza movimentação de objetos
-        if (tecla_W_pressionada)
-        {
-            // Movimenta câmera para frente
-            prevy_camera_position_c = camera_position_c.y;
-            camera_position_c += -w * speed * delta_t;
-            if (camera_position_c.y > 0.0f || camera_position_c.y < -0.01f)
-                camera_position_c.y = prevy_camera_position_c;
-        }
-
-        if (tecla_A_pressionada)
-        {
-            // Movimenta câmera para esquerda
-            camera_position_c += -u * speed * delta_t;
-        }
-
-        if (tecla_S_pressionada)
-        {
-            // Movimenta câmera para trás
-            prevy_camera_position_c = camera_position_c.y;
-            camera_position_c += w * speed * delta_t;
-            if (camera_position_c.y > 0.0f || camera_position_c.y < -0.01f)
-                camera_position_c.y = prevy_camera_position_c;
-        }
-
-        if (tecla_D_pressionada)
-        {
-            // Movimenta câmera para direita
-            camera_position_c += u * speed * delta_t;
-        }
+        /////////////////// VIEW e MODEL /////////////////////////////////////////
 
         // Computamos a matriz "View" utilizando os parâmetros da câmera para
         // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
@@ -512,7 +607,7 @@ int main(int argc, char* argv[])
         // Note que, no sistema de coordenadas da câmera, os planos near e far
         // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
         float nearplane = -0.1f;  // Posição do "near plane"
-        float farplane  = -50.0f; // Posição do "far plane"
+        float farplane  = -100.0f; // Posição do "far plane"
 
         // Projeção Perspectiva.
         // Para definição do field of view (FOV), veja slides 205-215 do documento Aula_09_Projecoes.pdf.
@@ -527,72 +622,139 @@ int main(int argc, char* argv[])
         glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
         glUniformMatrix4fv(g_projection_uniform , 1 , GL_FALSE , glm::value_ptr(projection));
 
-        // Desenhamos o modelo da esfera
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// SKYBOX ///////////////////////////////////////////////
+
         model = Matrix_Translate(camera_position_c.x, camera_position_c.y, camera_position_c.z);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, SPHERE);
+        glUniform1i(g_object_id_uniform, SKYBOX);
         glDisable(GL_CULL_FACE);
         glDisable(GL_DEPTH_TEST);
         DrawVirtualObject("the_sphere");
         glEnable(GL_CULL_FACE);
         glEnable(GL_DEPTH_TEST);
 
-        // Desenhamos o modelo do coelho
-        model = Matrix_Translate(2.0f,0.0f,0.0f)
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// TIROS ////////////////////////////////////////////////
+
+        if (g_LeftMouseButtonPressed && num_shots > 0)
+        {
+            // Impede que o jogador crie infinitos tiros segurando o botão esquerdo
+            g_LeftMouseButtonPressed = false;
+
+            // Cria um novo objeto de projectile
+            Projectile new_shot;
+
+            // Propriedades do tiro
+            new_shot.is_active = true;
+            new_shot.position = glm::vec3(camera_position_c.x, camera_position_c.y, camera_position_c.z);
+            new_shot.speed = glm::vec3(5*camera_view_vector.x, 5*camera_view_vector.y, 5*camera_view_vector.z);
+            shot.push_back(new_shot);
+
+            // Diminui o número de tiros possíveis
+            num_shots--;
+            if (num_shots < 0)
+                num_shots = 0;
+        }
+
+        if (reload)
+            num_shots = 6;
+
+        for (size_t i = 0; i < shot.size(); ++i) {
+
+            if (shot[i].is_active)
+            {
+
+                // Atualiza posição do tiro
+                shot[i].position += shot[i].speed * delta_t;
+
+                // Se o tiro percorreu mais de 20 unidades de distância ou colidiu com um monstro, ele some
+                if (length(camera_position_c - glm::vec4(shot[i].position.x, shot[i].position.y, shot[i].position.z, 1.0f)) > 20.0f)
+                    shot[i].is_active = false;
+
+                if (ColisaoEsferaEsfera(glm::vec4(shot[i].position.x, shot[i].position.y, shot[i].position.z, 1.0f), 0.25f,
+                                         monster_position, 1.5f))
+                {
+                    shot[i].is_active = false;
+                    monster_lifes--;
+                    if (monster_lifes < 0)
+                        monster_lifes = 0;
+                }
+
+                // Desenha o tiro após feita a atualização
+                model = Matrix_Translate(shot[i].position.x, shot[i].position.y, shot[i].position.z)
+                      * Matrix_Scale(0.025f, 0.025f, 0.025f);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, BULLETS);
+                DrawVirtualObject("the_sphere");
+
+            }
+        }
+
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// COELHO ///////////////////////////////////////////////
+
+        model = Matrix_Translate(55.0f, 28.125f, 30.0f)
               * Matrix_Rotate_Z(g_AngleZ)
               * Matrix_Rotate_Y(g_AngleY)
               * Matrix_Rotate_X(g_AngleX);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, BUNNY);
-        DrawVirtualObject("the_bunny");
 
-        // Desenhamos o plano
+        if (!ColisaoPontoEsfera(camera_position_c, glm::vec4(55.0f, 28.125f, 30.0f, 1.0f), 2.0f))
+            DrawVirtualObject("the_bunny");
+
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// PLANO ////////////////////////////////////////////////
+
         model = Matrix_Translate(0.0f,-1.0f,0.0f)
               * Matrix_Scale(100.0f, 1.0f, 100.0f);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, PLANE);
         DrawVirtualObject("the_plane");
 
-        // Desenhamos a estatua da liberdade
-        model = Matrix_Translate(0.0f, 4.0f, -8.0f)
-              * Matrix_Scale(4.0f, 4.0f, 4.0f)
-              * Matrix_Rotate_Y(3.141592f/2);
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// LIBERDADE ////////////////////////////////////////////
+
+        model = Matrix_Translate(-60.0f, 10.0f, -60.0f)
+              * Matrix_Scale(10.0f, 10.0f, 10.0f)
+              * Matrix_Rotate_Y(3.141592f*0.75f);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, LIBERTY);
         DrawVirtualObject("the_liberty");
 
-        // Desenhamos o monstro
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// MONSTRO //////////////////////////////////////////////
+
         model = Matrix_Translate(monster_position.x, monster_position.y, monster_position.z)
               * Matrix_Scale(2.0f, 2.0f, 2.0f)
-              * Matrix_Rotate_X(3.141592f/16)
               * Matrix_Rotate_Y(monster_angle);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, MONSTER);
-        DrawVirtualObject("the_monster");
+        if (monster_lifes > 0)
+            DrawVirtualObject("the_monster");
 
-        // atualiza a posição da mão do jogador com base na nova posição
-        hand_position = camera_position_c + 0.1f * camera_view_vector;
+        //////////////////////////////////////////////////////////////////////////
 
-        // Desenhamos a mão
-        model = Matrix_Translate(hand_position.x + 0.150, hand_position.y - 0.160, hand_position.z)
-              * Matrix_Scale(0.125f, 0.125f, 0.125f)
-              * Matrix_Rotate_X(-3.141592f/2);  // "Deita" a mão
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, HAND);
-        DrawVirtualObject("the_hand");
+        /////////////////// PEDRAS ///////////////////////////////////////////////
 
-        // Desenhamos multiplas pedras a partir do mesmo objeto
         for (int i=0; i<4; i++)
         {
             if (i == 0 || i == 1)
             {
-                model = Matrix_Translate(25.0f*pow(-1, i), 0.0f + (0.6*i), 25.0f*pow(-1, i+1))
+                model = Matrix_Translate(98.0f*pow(-1, i), 0.0f + (0.6*i), 98.0f*pow(-1, i+1))
                       * Matrix_Scale(2.0f + i, 2.0f + i, 2.0f + i)
                       * Matrix_Rotate_Y((3.141592f/2)*(i+1));
             }
             else
             {
-                model = Matrix_Translate(25.0f*pow(-1, i), 0.0f + (0.6*i), 25.0f*pow(-1, i))
+                model = Matrix_Translate(98.0f*pow(-1, i), 0.0f + (0.6*i), 98.0f*pow(-1, i))
                       * Matrix_Scale(2.0f + i, 2.0f + i, 2.0f + i)
                       * Matrix_Rotate_Y((3.141592f/2)*(i+1));
             }
@@ -601,12 +763,99 @@ int main(int argc, char* argv[])
             DrawVirtualObject("the_rock");
         }
 
-        // Imprimimos na tela os ângulos de Euler que controlam a rotação do
-        // terceiro cubo.
-        TextRendering_ShowEulerAngles(window);
+        //////////////////////////////////////////////////////////////////////////
 
-        // Imprimimos na informação sobre a matriz de projeção sendo utilizada.
-        TextRendering_ShowProjection(window);
+        /////////////////// NAVE /////////////////////////////////////////////////
+
+        model = Matrix_Translate(0.0f, 0.0f, 7.5f)
+              * Matrix_Scale(5.0f, 5.0f, 5.0f)
+              * Matrix_Rotate_Y(3.141592f*0.75f);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, SPACESHIP);
+        DrawVirtualObject("the_ship");
+
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// MORRO ////////////////////////////////////////////////
+
+        model = Matrix_Translate(55.0f, 18.0f, 30.0f)
+              * Matrix_Scale(20.0f, 20.0f, 20.0f);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, MOUNT);
+        DrawVirtualObject("the_mount");
+
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// BEZIER ///////////////////////////////////////////////
+
+        // Calcula a posição atual do objeto na curva de Bezier
+        if (ciclo_voo)
+            posicao_curva = CalculaBezier(t, ponto_controle_1, ponto_controle_2, ponto_controle_3, ponto_controle_4);
+        else
+            posicao_curva = CalculaBezier(t, ponto_controle_5, ponto_controle_6, ponto_controle_7, ponto_controle_8);
+
+        fly_monster_angle = -atan2(posicao_curva.z - camera_position_c.z, posicao_curva.x - camera_position_c.x);
+
+        model = Matrix_Translate(posicao_curva.x, posicao_curva.y, posicao_curva.z)
+              * Matrix_Rotate_Y(fly_monster_angle);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, FLYMONSTER);
+        DrawVirtualObject("the_flymonster");
+
+        // Incremento para que o objeto se mova na curva
+        t += 0.008f;
+
+        // Resete o parâmetro de interpolação para reiniciar o movimento ao completar a curva
+        if (t > 1.0f)
+        {
+            t = 0.0f;
+            ciclo_voo = !ciclo_voo;
+        }
+
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// HITBOXES /////////////////////////////////////////////
+
+        for(int i=0; i<2; i++)
+        {
+
+            if (i==0)
+            {
+                // Esfera de colisão centrada no monstro
+                model = Matrix_Translate(monster_position.x, monster_position.y, monster_position.z);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, HITBOX);
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                DrawVirtualObject("the_sphere");
+                glDisable(GL_BLEND);
+            }
+            else
+            {
+                // Esfera de colisão centrada no coelho
+                model = Matrix_Translate(55.0f, 28.125f, 30.0f)
+                      * Matrix_Scale(0.1f, 0.1f, 0.1f);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, HITBOX);
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                DrawVirtualObject("the_sphere");
+                glDisable(GL_BLEND);
+                if (!ColisaoPontoEsfera(camera_position_c, glm::vec4(55.0f, 28.125f, 30.0f, 1.0f), 2.0f))
+                    DrawVirtualObject("the_sphere");
+            }
+        }
+
+        //////////////////////////////////////////////////////////////////////////
+
+        // Imprimimos na tela a quantidade de tiros que o jogador possui
+        TextRendering_ShowBullets(window);
+
+        // Imprimimos na tela a quantidade de vidas que o jogador possui
+        TextRendering_ShowLifes(window);
+
+        // Imprimimos na tela a quantidade de peças da nave que o jogador possui
+        TextRendering_ShowPieces(window);
 
         // Imprimimos na tela informação sobre o número de quadros renderizados
         // por segundo (frames per second).
@@ -868,6 +1117,9 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage5"), 5);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage6"), 6);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage7"), 7);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage8"), 8);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage9"), 9);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage10"), 10);
 
     glUseProgram(0);
 }
@@ -1430,10 +1682,13 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     // Se o usuário apertar a tecla espaço, resetamos os ângulos de Euler para zero.
     if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
     {
+        jump = true;
         g_AngleX = 0.0f;
         g_AngleY = 0.0f;
         g_AngleZ = 0.0f;
     }
+    else
+        jump = false;
 
     // Se o usuário apertar a tecla P, utilizamos projeção perspectiva.
     if (key == GLFW_KEY_P && action == GLFW_PRESS)
@@ -1468,7 +1723,10 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
         LoadShadersFromFiles();
         fprintf(stdout,"Shaders recarregados!\n");
         fflush(stdout);
+        reload = true;
     }
+    else
+        reload = false;
 
     if (key == GLFW_KEY_W)
     {
@@ -1541,6 +1799,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
             // necessariamente deve ter ocorrido um evento PRESS.
             ;
     }
+
 }
 
 // Definimos o callback para impressão de erros da GLFW no terminal
@@ -1611,9 +1870,8 @@ void TextRendering_ShowModelViewProjection(
     TextRendering_PrintMatrixVectorProductMoreDigits(window, viewport_mapping, p_ndc, -1.0f, 1.0f-26*pad, 1.0f);
 }
 
-// Escrevemos na tela os ângulos de Euler definidos nas variáveis globais
-// g_AngleX, g_AngleY, e g_AngleZ.
-void TextRendering_ShowEulerAngles(GLFWwindow* window)
+// Escrevemos na tela o número de balas que o jogador ainda possui
+void TextRendering_ShowBullets(GLFWwindow* window)
 {
     if ( !g_ShowInfoText )
         return;
@@ -1621,24 +1879,37 @@ void TextRendering_ShowEulerAngles(GLFWwindow* window)
     float pad = TextRendering_LineHeight(window);
 
     char buffer[80];
-    snprintf(buffer, 80, "Euler Angles rotation matrix = Z(%.2f)*Y(%.2f)*X(%.2f)\n", g_AngleZ, g_AngleY, g_AngleX);
+    snprintf(buffer, 80, "Bullets = %d/6\n", num_shots);
 
-    TextRendering_PrintString(window, buffer, -1.0f+pad/10, -1.0f+2*pad/10, 1.0f);
+    TextRendering_PrintString(window, buffer, -1.0f+pad/2, -0.9+pad/2, 1.5f);
 }
 
-// Escrevemos na tela qual matriz de projeção está sendo utilizada.
-void TextRendering_ShowProjection(GLFWwindow* window)
+// Escrevemos na tela o número de vidas que o jogador ainda possui
+void TextRendering_ShowLifes(GLFWwindow* window)
 {
     if ( !g_ShowInfoText )
         return;
 
-    float lineheight = TextRendering_LineHeight(window);
-    float charwidth = TextRendering_CharWidth(window);
+    float pad = TextRendering_LineHeight(window);
 
-    if ( g_UsePerspectiveProjection )
-        TextRendering_PrintString(window, "Perspective", 1.0f-13*charwidth, -1.0f+2*lineheight/10, 1.0f);
-    else
-        TextRendering_PrintString(window, "Orthographic", 1.0f-13*charwidth, -1.0f+2*lineheight/10, 1.0f);
+    char buffer[80];
+    snprintf(buffer, 80, "Lifes = %d\n", num_lifes);
+
+    TextRendering_PrintString(window, buffer, -1.0f+pad/2, 0.9+pad/2, 1.5f);
+}
+
+// Escrevemos na tela o número de peças do foguete que o jogador ainda possui
+void TextRendering_ShowPieces(GLFWwindow* window)
+{
+    if ( !g_ShowInfoText )
+        return;
+
+    float pad = TextRendering_LineHeight(window);
+
+    char buffer[80];
+    snprintf(buffer, 80, "Pieces = %d/4\n", pieces);
+
+    TextRendering_PrintString(window, buffer, -1.0f+pad/2, -1.0+pad/2, 1.5f);
 }
 
 // Escrevemos na tela o número de quadros renderizados por segundo (frames per
@@ -1675,175 +1946,6 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow* window)
     float charwidth = TextRendering_CharWidth(window);
 
     TextRendering_PrintString(window, buffer, 1.0f-(numchars + 1)*charwidth, 1.0f-lineheight, 1.0f);
-}
-
-// Função para debugging: imprime no terminal todas informações de um modelo
-// geométrico carregado de um arquivo ".obj".
-// Veja: https://github.com/syoyo/tinyobjloader/blob/22883def8db9ef1f3ffb9b404318e7dd25fdbb51/loader_example.cc#L98
-void PrintObjModelInfo(ObjModel* model)
-{
-  const tinyobj::attrib_t                & attrib    = model->attrib;
-  const std::vector<tinyobj::shape_t>    & shapes    = model->shapes;
-  const std::vector<tinyobj::material_t> & materials = model->materials;
-
-  printf("# of vertices  : %d\n", (int)(attrib.vertices.size() / 3));
-  printf("# of normals   : %d\n", (int)(attrib.normals.size() / 3));
-  printf("# of texcoords : %d\n", (int)(attrib.texcoords.size() / 2));
-  printf("# of shapes    : %d\n", (int)shapes.size());
-  printf("# of materials : %d\n", (int)materials.size());
-
-  for (size_t v = 0; v < attrib.vertices.size() / 3; v++) {
-    printf("  v[%ld] = (%f, %f, %f)\n", static_cast<long>(v),
-           static_cast<const double>(attrib.vertices[3 * v + 0]),
-           static_cast<const double>(attrib.vertices[3 * v + 1]),
-           static_cast<const double>(attrib.vertices[3 * v + 2]));
-  }
-
-  for (size_t v = 0; v < attrib.normals.size() / 3; v++) {
-    printf("  n[%ld] = (%f, %f, %f)\n", static_cast<long>(v),
-           static_cast<const double>(attrib.normals[3 * v + 0]),
-           static_cast<const double>(attrib.normals[3 * v + 1]),
-           static_cast<const double>(attrib.normals[3 * v + 2]));
-  }
-
-  for (size_t v = 0; v < attrib.texcoords.size() / 2; v++) {
-    printf("  uv[%ld] = (%f, %f)\n", static_cast<long>(v),
-           static_cast<const double>(attrib.texcoords[2 * v + 0]),
-           static_cast<const double>(attrib.texcoords[2 * v + 1]));
-  }
-
-  // For each shape
-  for (size_t i = 0; i < shapes.size(); i++) {
-    printf("shape[%ld].name = %s\n", static_cast<long>(i),
-           shapes[i].name.c_str());
-    printf("Size of shape[%ld].indices: %lu\n", static_cast<long>(i),
-           static_cast<unsigned long>(shapes[i].mesh.indices.size()));
-
-    size_t index_offset = 0;
-
-    assert(shapes[i].mesh.num_face_vertices.size() ==
-           shapes[i].mesh.material_ids.size());
-
-    printf("shape[%ld].num_faces: %lu\n", static_cast<long>(i),
-           static_cast<unsigned long>(shapes[i].mesh.num_face_vertices.size()));
-
-    // For each face
-    for (size_t f = 0; f < shapes[i].mesh.num_face_vertices.size(); f++) {
-      size_t fnum = shapes[i].mesh.num_face_vertices[f];
-
-      printf("  face[%ld].fnum = %ld\n", static_cast<long>(f),
-             static_cast<unsigned long>(fnum));
-
-      // For each vertex in the face
-      for (size_t v = 0; v < fnum; v++) {
-        tinyobj::index_t idx = shapes[i].mesh.indices[index_offset + v];
-        printf("    face[%ld].v[%ld].idx = %d/%d/%d\n", static_cast<long>(f),
-               static_cast<long>(v), idx.vertex_index, idx.normal_index,
-               idx.texcoord_index);
-      }
-
-      printf("  face[%ld].material_id = %d\n", static_cast<long>(f),
-             shapes[i].mesh.material_ids[f]);
-
-      index_offset += fnum;
-    }
-
-    printf("shape[%ld].num_tags: %lu\n", static_cast<long>(i),
-           static_cast<unsigned long>(shapes[i].mesh.tags.size()));
-    for (size_t t = 0; t < shapes[i].mesh.tags.size(); t++) {
-      printf("  tag[%ld] = %s ", static_cast<long>(t),
-             shapes[i].mesh.tags[t].name.c_str());
-      printf(" ints: [");
-      for (size_t j = 0; j < shapes[i].mesh.tags[t].intValues.size(); ++j) {
-        printf("%ld", static_cast<long>(shapes[i].mesh.tags[t].intValues[j]));
-        if (j < (shapes[i].mesh.tags[t].intValues.size() - 1)) {
-          printf(", ");
-        }
-      }
-      printf("]");
-
-      printf(" floats: [");
-      for (size_t j = 0; j < shapes[i].mesh.tags[t].floatValues.size(); ++j) {
-        printf("%f", static_cast<const double>(
-                         shapes[i].mesh.tags[t].floatValues[j]));
-        if (j < (shapes[i].mesh.tags[t].floatValues.size() - 1)) {
-          printf(", ");
-        }
-      }
-      printf("]");
-
-      printf(" strings: [");
-      for (size_t j = 0; j < shapes[i].mesh.tags[t].stringValues.size(); ++j) {
-        printf("%s", shapes[i].mesh.tags[t].stringValues[j].c_str());
-        if (j < (shapes[i].mesh.tags[t].stringValues.size() - 1)) {
-          printf(", ");
-        }
-      }
-      printf("]");
-      printf("\n");
-    }
-  }
-
-  for (size_t i = 0; i < materials.size(); i++) {
-    printf("material[%ld].name = %s\n", static_cast<long>(i),
-           materials[i].name.c_str());
-    printf("  material.Ka = (%f, %f ,%f)\n",
-           static_cast<const double>(materials[i].ambient[0]),
-           static_cast<const double>(materials[i].ambient[1]),
-           static_cast<const double>(materials[i].ambient[2]));
-    printf("  material.Kd = (%f, %f ,%f)\n",
-           static_cast<const double>(materials[i].diffuse[0]),
-           static_cast<const double>(materials[i].diffuse[1]),
-           static_cast<const double>(materials[i].diffuse[2]));
-    printf("  material.Ks = (%f, %f ,%f)\n",
-           static_cast<const double>(materials[i].specular[0]),
-           static_cast<const double>(materials[i].specular[1]),
-           static_cast<const double>(materials[i].specular[2]));
-    printf("  material.Tr = (%f, %f ,%f)\n",
-           static_cast<const double>(materials[i].transmittance[0]),
-           static_cast<const double>(materials[i].transmittance[1]),
-           static_cast<const double>(materials[i].transmittance[2]));
-    printf("  material.Ke = (%f, %f ,%f)\n",
-           static_cast<const double>(materials[i].emission[0]),
-           static_cast<const double>(materials[i].emission[1]),
-           static_cast<const double>(materials[i].emission[2]));
-    printf("  material.Ns = %f\n",
-           static_cast<const double>(materials[i].shininess));
-    printf("  material.Ni = %f\n", static_cast<const double>(materials[i].ior));
-    printf("  material.dissolve = %f\n",
-           static_cast<const double>(materials[i].dissolve));
-    printf("  material.illum = %d\n", materials[i].illum);
-    printf("  material.map_Ka = %s\n", materials[i].ambient_texname.c_str());
-    printf("  material.map_Kd = %s\n", materials[i].diffuse_texname.c_str());
-    printf("  material.map_Ks = %s\n", materials[i].specular_texname.c_str());
-    printf("  material.map_Ns = %s\n",
-           materials[i].specular_highlight_texname.c_str());
-    printf("  material.map_bump = %s\n", materials[i].bump_texname.c_str());
-    printf("  material.map_d = %s\n", materials[i].alpha_texname.c_str());
-    printf("  material.disp = %s\n", materials[i].displacement_texname.c_str());
-    printf("  <<PBR>>\n");
-    printf("  material.Pr     = %f\n", materials[i].roughness);
-    printf("  material.Pm     = %f\n", materials[i].metallic);
-    printf("  material.Ps     = %f\n", materials[i].sheen);
-    printf("  material.Pc     = %f\n", materials[i].clearcoat_thickness);
-    printf("  material.Pcr    = %f\n", materials[i].clearcoat_thickness);
-    printf("  material.aniso  = %f\n", materials[i].anisotropy);
-    printf("  material.anisor = %f\n", materials[i].anisotropy_rotation);
-    printf("  material.map_Ke = %s\n", materials[i].emissive_texname.c_str());
-    printf("  material.map_Pr = %s\n", materials[i].roughness_texname.c_str());
-    printf("  material.map_Pm = %s\n", materials[i].metallic_texname.c_str());
-    printf("  material.map_Ps = %s\n", materials[i].sheen_texname.c_str());
-    printf("  material.norm   = %s\n", materials[i].normal_texname.c_str());
-    std::map<std::string, std::string>::const_iterator it(
-        materials[i].unknown_parameter.begin());
-    std::map<std::string, std::string>::const_iterator itEnd(
-        materials[i].unknown_parameter.end());
-
-    for (; it != itEnd; it++) {
-      printf("  material.%s = %s\n", it->first.c_str(), it->second.c_str());
-    }
-    printf("\n");
-  }
 }
 
 // set makeprg=cd\ ..\ &&\ make\ run\ >/dev/null

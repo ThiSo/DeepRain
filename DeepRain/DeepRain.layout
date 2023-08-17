@@ -2,9 +2,14 @@
 <CodeBlocks_layout_file>
 	<FileVersion major="1" minor="0" />
 	<ActiveTarget name="Debug" />
-	<File name="src\shader_vertex.glsl" open="1" top="0" tabpos="2" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+	<File name="include\matrices.h" open="1" top="0" tabpos="4" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="2942" topLine="7" />
+			<Cursor1 position="0" topLine="189" />
+		</Cursor>
+	</File>
+	<File name="src\collisions.cpp" open="1" top="0" tabpos="5" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="1625" topLine="0" />
 		</Cursor>
 	</File>
 	<File name="include\glm\detail\type_vec4.inl" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
@@ -12,14 +17,34 @@
 			<Cursor1 position="4619" topLine="133" />
 		</Cursor>
 	</File>
-	<File name="src\main.cpp" open="1" top="1" tabpos="1" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+	<File name="src\collisions.h" open="1" top="0" tabpos="7" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="25303" topLine="565" />
+			<Cursor1 position="0" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src\bezier.h" open="1" top="1" tabpos="8" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="161" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src\main.cpp" open="1" top="0" tabpos="1" split="0" active="1" splitpos="0" zoom_1="4" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="1703" topLine="66" />
 		</Cursor>
 	</File>
 	<File name="src\shader_fragment.glsl" open="1" top="0" tabpos="3" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="4787" topLine="25" />
+			<Cursor1 position="8616" topLine="205" />
+		</Cursor>
+	</File>
+	<File name="src\bezier.cpp" open="1" top="0" tabpos="6" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="736" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src\shader_vertex.glsl" open="1" top="0" tabpos="2" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="2942" topLine="27" />
 		</Cursor>
 	</File>
 </CodeBlocks_layout_file>

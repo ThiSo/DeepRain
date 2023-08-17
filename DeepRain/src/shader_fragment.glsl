@@ -19,13 +19,17 @@ uniform mat4 view;
 uniform mat4 projection;
 
 // Identificador que define qual objeto está sendo desenhado no momento
-#define SPHERE 0
+#define SKYBOX 0
 #define BUNNY  1
 #define PLANE  2
 #define LIBERTY  3
 #define MONSTER 4
 #define ROCK 5
-#define HAND 6
+#define FLYMONSTER 6
+#define SPACESHIP 7
+#define MOUNT 8
+#define BULLETS 9
+#define HITBOX 10
 
 uniform int object_id;
 
@@ -41,7 +45,10 @@ uniform sampler2D TextureImage3; //STATUE
 uniform sampler2D TextureImage4; //GRASS
 uniform sampler2D TextureImage5; //SKY
 uniform sampler2D TextureImage6; //ROCK
-uniform sampler2D TextureImage7; //HAND
+uniform sampler2D TextureImage7; //FLYMONSTER
+uniform sampler2D TextureImage8; //SPACESHIP
+uniform sampler2D TextureImage9; //MOUNT
+uniform sampler2D TextureImage10; //BULLETS
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec4 color;
@@ -89,7 +96,7 @@ void main()
     vec3 Ka; // Refletância ambiente
     float q; // Expoente especular para o modelo de iluminação de Phong
 
-    if ( object_id == SPHERE )
+    if ( object_id == SKYBOX || object_id == BULLETS || object_id == HITBOX)
     {
         // PARA TEXTURA
         vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
@@ -120,7 +127,9 @@ void main()
         p_V = (position_model.y - miny)/(maxy - miny);
 
     }
-    else if ( object_id == LIBERTY || object_id == MONSTER || object_id == ROCK || object_id == HAND )
+    else if ( object_id == LIBERTY || object_id == MONSTER ||
+              object_id == ROCK || object_id == FLYMONSTER ||
+              object_id == SPACESHIP || object_id == MOUNT )
     {
         // Coordenadas de textura da estatua, monstro ou pedra, obtidas dos arquivos OBJ.
         p_U = texcoords.x;
@@ -131,7 +140,6 @@ void main()
         // Coordenadas do plano, obtidas dos arquivos OBJ.
         // multiplicação por 10 para forçar as coordenadas a sairem do intervalo [0, 1]
         // e serem repetidas pelo parâmetro de texture wrapping GL_MIRRORED_REPEAT
-        // FONTE: https://chat.openai.com/share/42510b6c-c0f9-4300-a068-26b80603551c
         p_U = texcoords.x * 10;
         p_V = texcoords.y * 10;
     }
@@ -157,7 +165,7 @@ void main()
     {
         Kd0 = texture(TextureImage4, vec2(p_U, p_V)).rgb;
     }
-    else if (object_id == SPHERE)
+    else if (object_id == SKYBOX || object_id == HITBOX)
     {
         Kd0 = texture(TextureImage5, vec2(p_U, p_V)).rgb;
     }
@@ -165,9 +173,21 @@ void main()
     {
         Kd0 = texture(TextureImage6, vec2(p_U, p_V)).rgb;
     }
-    else if (object_id == HAND)
+    else if (object_id == FLYMONSTER)
     {
         Kd0 = texture(TextureImage7, vec2(p_U, p_V)).rgb;
+    }
+    else if (object_id == SPACESHIP)
+    {
+        Kd0 = texture(TextureImage8, vec2(p_U, p_V)).rgb;
+    }
+    else if (object_id == MOUNT)
+    {
+        Kd0 = texture(TextureImage9, vec2(p_U, p_V)).rgb;
+    }
+    else if (object_id == BULLETS)
+    {
+        Kd0 = texture(TextureImage10, vec2(p_U, p_V)).rgb;
     }
 
     // Espectro da fonte de iluminação
@@ -202,7 +222,10 @@ void main()
     //    suas distâncias para a câmera (desenhando primeiro objetos
     //    transparentes que estão mais longe da câmera).
     // Alpha default = 1 = 100% opaco = 0% transparente
-    color.a = 1;
+    if (object_id == HITBOX)
+        color.a = 0;
+    else
+        color.a = 1;
 
     // Cor final do fragmento calculada com uma combinação dos termos difuso,
     // especular, e ambiente. Veja slide 129 do documento Aula_17_e_18_Modelos_de_Iluminacao.pdf.
