@@ -637,7 +637,7 @@
 	<array>
 	"mapbox/earcut.hpp"
 
-1690841215 source:c:\users\thiago\desktop\fcg\trabalho final\deeprain\deeprain\src\main.cpp
+1691012414 source:c:\users\thiago\desktop\fcg\trabalho final\deeprain\deeprain\src\main.cpp
 	<cmath>
 	<cstdio>
 	<cstdlib>
@@ -660,6 +660,8 @@
 	"utils.h"
 	"matrices.h"
 	"iostream"
+	"collisions.h"
+	"bezier.h"
 
 1689005476 c:\users\thiago\desktop\fcg\trabalho final\deeprain\deeprain\include\glm\gtc\type_ptr.hpp
 	"../gtc/quaternion.hpp"
@@ -943,6 +945,7 @@
 	<glm/vec4.hpp>
 	<glm/gtc/matrix_transform.hpp>
 
+<<<<<<< HEAD
 1690338497 source:c:\users\vitor\onedrive\햞ea de trabalho\trabalho final fcg\deeprain\deeprain\src\glad.c
 	<stdio.h>
 	<stdlib.h>
@@ -1890,20 +1893,51 @@
 	"tiny_obj_loader.h"
 
 1692297623 source:c:\users\vitor\onedrive\햞ea de trabalho\trabalho final fcg\deeprain\deeprain\src\bezier.cpp
+=======
+1690928958 source:c:\users\thiago\desktop\fcg\trabalho final\deeprain\deeprain\src\colisions.cpp
+>>>>>>> c13a98a3dd4f369b7d71d507276edd4d96948184
 	<glm/mat4x4.hpp>
 	<glm/vec4.hpp>
 	<glm/gtc/type_ptr.hpp>
 	<cmath>
 	"iostream"
 
+<<<<<<< HEAD
 1692297623 source:c:\users\vitor\onedrive\햞ea de trabalho\trabalho final fcg\deeprain\deeprain\src\collisions.cpp
+=======
+1690925741 c:\users\thiago\desktop\fcg\trabalho final\deeprain\deeprain\src\colisions.cpp
+	<glm/mat4x4.hpp>
+	<glm/vec4.hpp>
+	<glm/gtc/type_ptr.hpp>
+	<cmath>
+	<cstdio>
+	<cstdlib>
+	"iostream"
+
+1690925805 c:\users\thiago\desktop\fcg\trabalho final\deeprain\deeprain\src\colisions.h
+
+1691008389 c:\users\thiago\desktop\fcg\trabalho final\deeprain\deeprain\src\collisions.h
+
+1691008371 c:\users\thiago\desktop\fcg\trabalho final\deeprain\deeprain\src\bezier.h
+
+1691010180 source:c:\users\thiago\desktop\fcg\trabalho final\deeprain\deeprain\src\collisions.cpp
+>>>>>>> c13a98a3dd4f369b7d71d507276edd4d96948184
 	<glm/mat4x4.hpp>
 	<glm/vec4.hpp>
 	<glm/gtc/type_ptr.hpp>
 	<cmath>
 	"iostream"
 
+<<<<<<< HEAD
 1692297623 c:\users\vitor\onedrive\햞ea de trabalho\trabalho final fcg\deeprain\deeprain\src\collisions.h
 
 1692297623 c:\users\vitor\onedrive\햞ea de trabalho\trabalho final fcg\deeprain\deeprain\src\bezier.h
+=======
+1691009716 source:c:\users\thiago\desktop\fcg\trabalho final\deeprain\deeprain\src\bezier.cpp
+	<glm/mat4x4.hpp>
+	<glm/vec4.hpp>
+	<glm/gtc/type_ptr.hpp>
+	<cmath>
+	"iostream"
+>>>>>>> c13a98a3dd4f369b7d71d507276edd4d96948184
 

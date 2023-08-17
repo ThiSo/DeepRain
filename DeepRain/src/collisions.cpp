@@ -39,4 +39,3 @@ bool ColisaoEsferaEsfera(glm::vec4 centro_esfera_1, float raio_1, glm::vec4 cent
 }
 
 
-
