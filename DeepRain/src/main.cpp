@@ -136,6 +136,7 @@ void PopMatrix(glm::mat4& M);
 // logo após a definição de main() neste arquivo.
 void BuildTrianglesAndAddToVirtualScene(ObjModel*); // Constrói representação de um ObjModel como malha de triângulos para renderização
 GLuint BuildTrianglesForCrosshair(); // Constrói triângulos para renderização
+GLuint BuildTrianglesForGameOverScreen(); // Constrói triângulos para renderização
 void ComputeNormals(ObjModel* model); // Computa normais de um ObjModel, caso não existam.
 void LoadShadersFromFiles(); // Carrega os shaders de vértice e fragmento, criando um programa de GPU
 void LoadTextureImage(const char* filename); // Função que carrega imagens de textura
@@ -163,6 +164,7 @@ void TextRendering_ShowModelViewProjection(GLFWwindow* window, glm::mat4 project
 void TextRendering_ShowBullets(GLFWwindow* window);
 void TextRendering_ShowLifes(GLFWwindow* window);
 void TextRendering_ShowPieces(GLFWwindow* window);
+void TextRendering_ShowGameOver(GLFWwindow* window);
 void TextRendering_ShowFramesPerSecond(GLFWwindow* window);
 
 // Funções callback para comunicação com o sistema operacional e interação do
@@ -198,7 +200,8 @@ std::map<std::string, SceneObject> g_VirtualScene;
 // Pilha que guardará as matrizes de modelagem.
 std::stack<glm::mat4>  g_MatrixStack;
 
-// Classe / Vector para armazenar projéteis
+// Classe / Vector para armazenar projéteis //
+
 class Projectile {
     public:
         glm::vec3 position;
@@ -213,9 +216,25 @@ std::vector<Projectile> shot;
 int num_shots = 6;
 bool reload = false;
 
-int num_lifes = 3;
+// Classe / Vector para os monstros //////////
+
+class Monster {
+    public:
+        glm::vec4 position;
+        bool is_alive = true;
+        bool proximo = false;
+        float speed = 2.0f;
+        float angle = 0.0f;
+        int lifes = 3;
+};
+
+std::vector<Monster> monster;
+
 int monster_lifes = 3;
 
+//////////////////////////////////////////////
+
+int num_lifes = 3;
 int pieces = 0;
 
 // def do vetor de indices
@@ -228,6 +247,8 @@ float g_ScreenRatio = 1.0f;
 float g_AngleX = 0.0f;
 float g_AngleY = 0.0f;
 float g_AngleZ = 0.0f;
+
+// Booleanos para o pulo do jogador
 bool jump = false;
 bool go_down = false;
 
@@ -260,33 +281,34 @@ GLint g_object_id_uniform;
 GLint g_bbox_min_uniform;
 GLint g_bbox_max_uniform;
 
+// Booleanos para movimentação e camera lock
 bool tecla_W_pressionada = false;
 bool tecla_A_pressionada = false;
 bool tecla_S_pressionada = false;
 bool tecla_D_pressionada = false;
-bool tecla_O_pressionada = false;
 
-bool isLooking = false;
-bool proximo = false;
-
+// Variáveis para atualização de posição e câmera
 float delta_t = 0.0f;
 float g_Theta = 3.141592f / 4;
 float g_Phi = 3.141592f / 6;
 
+// Vetor view da câmera
 glm::vec4 camera_view_vector;
-glm::vec4 camera_position_c = glm::vec4(0.0f, 1.0f, 2.0f, 1.0f);
-glm::vec4 monster_position = glm::vec4(-30.0f, 0.6f, -30.0f, 1.0f);
 
+// Pontos de posição do jogador
+glm::vec4 camera_position_c = glm::vec4(0.0f, 1.0f, 2.0f, 1.0f);
+
+// Variáveis para o monstro com movimentação dada por curva de bezier
 bool ciclo_voo = true;
 glm::vec3 posicao_curva;
 
-// Pontos de controle da primeira curva de beziér
+// Pontos de controle da primeira curva de bezier
 glm::vec3 ponto_controle_1 = glm::vec3(40.0f, 10.0f, 70.0f);
 glm::vec3 ponto_controle_2 = glm::vec3(52.0f, 35.0f, 40.0f);
 glm::vec3 ponto_controle_3 = glm::vec3(70.0f, 50.0f, 70.0f);
 glm::vec3 ponto_controle_4 = glm::vec3(85.0f, 20.0f, 40.0f);
 
-// Pontos de controle da segunda curva de beziér
+// Pontos de controle da segunda curva de bezier
 glm::vec3 ponto_controle_5 = glm::vec3(85.0f, 20.0f, 40.0f);
 glm::vec3 ponto_controle_6 = glm::vec3(60.0f, 35.0f, 10.0f);
 glm::vec3 ponto_controle_7 = glm::vec3(20.0f, 50.0f, 10.0f);
@@ -433,8 +455,9 @@ int main(int argc, char* argv[])
         BuildTrianglesAndAddToVirtualScene(&model);
     }
 
-    // Construímos a representação da crosshair
+    // Construímos a representação de triangulos
     GLuint vertex_array_object_id_crosshair = BuildTrianglesForCrosshair();
+    GLuint vertex_array_object_id_gameoverscreen = BuildTrianglesForGameOverScreen();
 
     // Inicializamos o código para renderização de texto.
     TextRendering_Init();
@@ -451,8 +474,7 @@ int main(int argc, char* argv[])
     float speed = 10.0f; // Velocidade da câmera
     float prev_time = (float)glfwGetTime();
 
-    float monster_speed = 2.0f;
-    float monster_angle = 0.0f;
+    // float monster_speed = 2.0f;
     float fly_monster_angle = 0.0f;
 
     float prevx_camera_position_c;
@@ -460,6 +482,42 @@ int main(int argc, char* argv[])
     float prevz_camera_position_c;
 
     float t = 0.0f;     // Parâmetro de interpolação da curva de beziér
+
+    // Inicialização dos monstros /////////////////////////////////////////
+
+    std::vector<glm::vec3> posVector;
+
+    glm::vec3 monster_0_position = glm::vec3(-50.0f, 0.6f, 0.0f);
+    glm::vec3 monster_1_position = glm::vec3(-30.0f, 0.6f, -30.0f);
+    glm::vec3 monster_2_position = glm::vec3(-5.0f, 0.6f, -50.0f);
+    glm::vec3 monster_3_position = glm::vec3(-10.0f, 0.6f, 30.0f);
+    glm::vec3 monster_4_position = glm::vec3(-50.0f, 0.6f, 50.0f);
+    glm::vec3 monster_5_position = glm::vec3(30.0f, 0.6f, -40.0f);
+    glm::vec3 monster_6_position = glm::vec3(40.0f, 0.6f, -50.0f);
+    glm::vec3 monster_7_position = glm::vec3(30.0f, 0.6f, 40.0f);
+    glm::vec3 monster_8_position = glm::vec3(35.0f, 0.6f, 35.0f);
+    glm::vec3 monster_9_position = glm::vec3(50.0f, 0.6f, 50.0f);
+
+    posVector.push_back(monster_0_position);
+    posVector.push_back(monster_1_position);
+    posVector.push_back(monster_2_position);
+    posVector.push_back(monster_3_position);
+    posVector.push_back(monster_4_position);
+    posVector.push_back(monster_5_position);
+    posVector.push_back(monster_6_position);
+    posVector.push_back(monster_7_position);
+    posVector.push_back(monster_8_position);
+    posVector.push_back(monster_9_position);
+
+    for (const glm::vec3& monster_position : posVector) {
+
+        Monster new_monster;
+
+        new_monster.position = glm::vec4(monster_position.x, monster_position.y, monster_position.z, 1.0f);
+        monster.push_back(new_monster);
+    }
+
+    ///////////////////////////////////////////////////////////////////////
 
     // Ficamos em um loop infinito, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
@@ -506,34 +564,18 @@ int main(int argc, char* argv[])
         prevz_camera_position_c = camera_position_c.z;
 
         // Realiza movimentação do jogador
-        if (num_lifes > 0)
-        {
-            if (tecla_W_pressionada)
+        if (tecla_W_pressionada)
             camera_position_c += -w * speed * delta_t;
 
-            if (tecla_A_pressionada)
-                camera_position_c += -u * speed * delta_t;
+        if (tecla_A_pressionada)
+            camera_position_c += -u * speed * delta_t;
 
-            if (tecla_S_pressionada)
-                camera_position_c += w * speed * delta_t;
+        if (tecla_S_pressionada)
+            camera_position_c += w * speed * delta_t;
 
-            if (tecla_D_pressionada)
-                camera_position_c += u * speed * delta_t;
-        }
+        if (tecla_D_pressionada)
+            camera_position_c += u * speed * delta_t;
 
-        /*
-        if (go_down)
-        {
-            camera_position_c.y -= 1.0f;
-            go_down = false;
-        }
-
-        if (jump)
-        {
-            camera_position_c.y += 1.0f;
-            go_down = true;
-        }
-        */
 
         // Checa colisões após o jogador ter se movimentado
         if (ColisaoPontoPlano(camera_position_c, glm::vec4(0.0f, 1.0f, 0.0f, 0.0f)))
@@ -542,55 +584,57 @@ int main(int argc, char* argv[])
             camera_position_c.y = prevy_camera_position_c;
         }
 
-        if (ColisaoPontoEsfera(camera_position_c, monster_position, 2.0f) && monster_lifes > 0)
-        {
-            // Se o jogador for atingido pelo monstro, perde uma vida
-            num_lifes--;
-            if (num_lifes < 0)
-                num_lifes = 0;
+        for (size_t i = 0; i < monster.size(); ++i) {
 
-            // Reposiciona o jogador caso ele tome dano
-            camera_position_c.x = prevx_camera_position_c + 2.0f;
-            camera_position_c.z = prevz_camera_position_c + 2.0f;
+            if (ColisaoPontoEsfera(camera_position_c, monster[i].position, 2.0f) && monster[i].lifes > 0)
+            {
+                // Se o jogador for atingido pelo monstro, perde uma vida
+                num_lifes--;
+                if (num_lifes < 0)
+                    num_lifes = 0;
+
+                // Reposiciona o jogador caso ele tome dano
+                camera_position_c.x = prevx_camera_position_c + 2.0f;
+                camera_position_c.z = prevz_camera_position_c + 2.0f;
+            }
+
         }
 
         //////////////////////////////////////////////////////////////////////////
 
-        /////////////////// MOVIMENTAÇÃO MONSTRO /////////////////////////////////
+        /////////////////// MOVIMENTAÇÃO MONSTROS ////////////////////////////////
 
-        // Checa se o jogador se aproximou o suficiente do monstro para que este o note
-        if
-            (length(camera_position_c - monster_position) < 15.0f) proximo = true;
-        else
-        {
-            proximo = false;
-            tecla_O_pressionada = false;
-            isLooking = !isLooking;
-        }
+        for (size_t i = 0; i < monster.size(); ++i) {
 
-        // Se o jogador se aproximar do monstro, este o persegue
-        if (proximo)
-        {
-            // Atualiza a rotação do monstro pra sempre estar olhando pro jogador
-            monster_angle = -atan2(monster_position.z - camera_position_c.z, monster_position.x - camera_position_c.x);
+            if (monster[i].is_alive)
+            {
 
-            if (tecla_O_pressionada && monster_lifes > 0)
-                camera_view_vector = monster_position - camera_position_c;
-            else
-                camera_view_vector = glm::vec4(x, y, -z, 0.0f);
+                // Checa se o jogador se aproximou o suficiente do monstro para que este o note
+                if (length(camera_position_c - monster[i].position) < 15.0f)
+                    monster[i].proximo = true;
+                else
+                    monster[i].proximo = false;
 
-            if (camera_position_c.x - 1.25f < monster_position.x)
-                monster_position.x -= monster_speed * delta_t;
+                // Se o jogador se aproximar do monstro, este o persegue
+                if (monster[i].proximo)
+                {
+                    // Atualiza a rotação do monstro pra sempre estar olhando pro jogador
+                    monster[i].angle = -atan2(monster[i].position.z - camera_position_c.z, monster[i].position.x - camera_position_c.x);
 
-            if (camera_position_c.x + 1.25f> monster_position.x)
-                monster_position.x += monster_speed  * delta_t;
+                    if (camera_position_c.x - 1.25f < monster[i].position.x)
+                        monster[i].position.x -= monster[i].speed * delta_t;
 
-            if (camera_position_c.z - 1.25f < monster_position.z)
-                monster_position.z -= monster_speed  * delta_t;
+                    if (camera_position_c.x + 1.25f> monster[i].position.x)
+                        monster[i].position.x += monster[i].speed  * delta_t;
 
-            if (camera_position_c.z + 1.25f > monster_position.z)
-                monster_position.z += monster_speed  * delta_t;
+                    if (camera_position_c.z - 1.25f < monster[i].position.z)
+                        monster[i].position.z -= monster[i].speed  * delta_t;
 
+                    if (camera_position_c.z + 1.25f > monster[i].position.z)
+                        monster[i].position.z += monster[i].speed  * delta_t;
+
+                }
+            }
         }
 
         //////////////////////////////////////////////////////////////////////////
@@ -674,13 +718,18 @@ int main(int argc, char* argv[])
                 if (length(camera_position_c - glm::vec4(shot[i].position.x, shot[i].position.y, shot[i].position.z, 1.0f)) > 20.0f)
                     shot[i].is_active = false;
 
-                if (ColisaoEsferaEsfera(glm::vec4(shot[i].position.x, shot[i].position.y, shot[i].position.z, 1.0f), 0.25f,
-                                         monster_position, 1.5f))
+                for (size_t j = 0; j < monster.size(); ++j)
                 {
-                    shot[i].is_active = false;
-                    monster_lifes--;
-                    if (monster_lifes < 0)
-                        monster_lifes = 0;
+                    if (ColisaoEsferaEsfera(glm::vec4(shot[i].position.x, shot[i].position.y, shot[i].position.z, 1.0f), 0.25f,
+                                             monster[j].position, 1.5f))
+                    {
+                        shot[i].is_active = false;
+                        monster[j].lifes--;
+                        if (monster[j].lifes == 0)
+                            monster[j].is_alive = false;
+                        if (monster[j].lifes < 0)
+                            monster[j].lifes = 0;
+                    }
                 }
 
                 // Desenha o tiro após feita a atualização
@@ -732,13 +781,20 @@ int main(int argc, char* argv[])
 
         /////////////////// MONSTRO //////////////////////////////////////////////
 
-        model = Matrix_Translate(monster_position.x, monster_position.y, monster_position.z)
-              * Matrix_Scale(2.0f, 2.0f, 2.0f)
-              * Matrix_Rotate_Y(monster_angle);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, MONSTER);
-        if (monster_lifes > 0)
-            DrawVirtualObject("the_monster");
+        for (size_t i = 0; i < monster.size(); ++i) {
+
+            if (monster[i].is_alive)
+            {
+                model = Matrix_Translate(monster[i].position.x, monster[i].position.y, monster[i].position.z)
+                      * Matrix_Scale(2.0f, 2.0f, 2.0f)
+                      * Matrix_Rotate_Y(monster[i].angle);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, MONSTER);
+                if (monster_lifes > 0)
+                    DrawVirtualObject("the_monster");
+            }
+
+        }
 
         //////////////////////////////////////////////////////////////////////////
 
@@ -821,14 +877,20 @@ int main(int argc, char* argv[])
 
             if (i==0)
             {
-                // Esfera de colisão centrada no monstro
-                model = Matrix_Translate(monster_position.x, monster_position.y, monster_position.z);
-                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-                glUniform1i(g_object_id_uniform, HITBOX);
-                glEnable(GL_BLEND);
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                DrawVirtualObject("the_sphere");
-                glDisable(GL_BLEND);
+                for (size_t i = 0; i < monster.size(); ++i)
+                {
+                    if (monster[i].is_alive)
+                    {
+                       // Esfera de colisão centrada nos monstros
+                        model = Matrix_Translate(monster[i].position.x, monster[i].position.y, monster[i].position.z);
+                        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                        glUniform1i(g_object_id_uniform, HITBOX);
+                        glEnable(GL_BLEND);
+                        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                        DrawVirtualObject("the_sphere");
+                        glDisable(GL_BLEND);
+                    }
+                }
             }
             else
             {
@@ -839,34 +901,51 @@ int main(int argc, char* argv[])
                 glUniform1i(g_object_id_uniform, HITBOX);
                 glEnable(GL_BLEND);
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                DrawVirtualObject("the_sphere");
-                glDisable(GL_BLEND);
                 if (!ColisaoPontoEsfera(camera_position_c, glm::vec4(55.0f, 28.125f, 30.0f, 1.0f), 2.0f))
                     DrawVirtualObject("the_sphere");
+                glDisable(GL_BLEND);
             }
         }
 
         //////////////////////////////////////////////////////////////////////////
 
-        // Imprimimos na tela a quantidade de tiros que o jogador possui
-        TextRendering_ShowBullets(window);
+        if (num_lifes > 0)
+        {
+            // Imprimimos na tela a quantidade de tiros que o jogador possui
+            TextRendering_ShowBullets(window);
 
-        // Imprimimos na tela a quantidade de vidas que o jogador possui
-        TextRendering_ShowLifes(window);
+            // Imprimimos na tela a quantidade de vidas que o jogador possui
+            TextRendering_ShowLifes(window);
 
-        // Imprimimos na tela a quantidade de peças da nave que o jogador possui
-        TextRendering_ShowPieces(window);
+            // Imprimimos na tela a quantidade de peças da nave que o jogador possui
+            TextRendering_ShowPieces(window);
 
-        // Imprimimos na tela informação sobre o número de quadros renderizados
-        // por segundo (frames per second).
-        TextRendering_ShowFramesPerSecond(window);
+            // Imprimimos na tela informação sobre o número de quadros renderizados
+            // por segundo (frames per second).
+            TextRendering_ShowFramesPerSecond(window);
 
-        // desenha a crossair na frente da tela
-        glDisable(GL_DEPTH_TEST);
-        glBindVertexArray(vertex_array_object_id_crosshair);
-        glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_BYTE, 0);
-        glEnable(GL_DEPTH_TEST);
+            // desenha a crossair na frente da tela
+            glDisable(GL_DEPTH_TEST);
+            glBindVertexArray(vertex_array_object_id_crosshair);
+            glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_BYTE, 0);
+            glEnable(GL_DEPTH_TEST);
 
+        }
+
+        else
+        {
+            // Imprimimos na tela a mensagem de fim de jogo
+            TextRendering_ShowGameOver(window);
+
+            // desenha a tela de game over
+            glDisable(GL_DEPTH_TEST);
+            glBindVertexArray(vertex_array_object_id_gameoverscreen);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, 0);
+            glEnable(GL_DEPTH_TEST);
+
+        }
+
+        // Desligamos o VAO
         glBindVertexArray(0);
 
         // Atualiza delta de tempo
@@ -1045,6 +1124,80 @@ GLuint BuildTrianglesForCrosshair()
                           3, 2, 1,
                           6, 5, 4,
                           6, 4, 7};
+
+    // Criamos um buffer OpenGL para armazenar os índices acima
+    GLuint indices_id;
+    glGenBuffers(1, &indices_id);
+
+    // "Ligamos" o buffer. Note que o tipo agora é GL_ELEMENT_ARRAY_BUFFER.
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices_id);
+
+    // Alocamos memória para o buffer.
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), NULL, GL_STATIC_DRAW);
+
+    // Copiamos os valores do array indices[] para dentro do buffer.
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(indices), indices);
+
+    glBindVertexArray(0);
+
+    return vertex_array_object_id;
+}
+
+GLuint BuildTrianglesForGameOverScreen()
+{
+
+    GLfloat NDC_coefficients[] = {
+        -1.0f,  -1.0f, 0.0f, 1.0f, // posição do vértice 0
+        -1.0f,   1.0f, 0.0f, 1.0f, // posição do vértice 1
+         1.0f,   1.0f, 0.0f, 1.0f, // posição do vértice 2
+         1.0f,  -1.0f, 0.0f, 1.0f, // posição do vértice 3
+
+    };
+
+    GLuint VBO_NDC_coefficients_id;
+    glGenBuffers(1, &VBO_NDC_coefficients_id);
+
+    GLuint vertex_array_object_id;
+    glGenVertexArrays(1, &vertex_array_object_id);
+
+    glBindVertexArray(vertex_array_object_id);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_NDC_coefficients_id);
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(NDC_coefficients), NULL, GL_STATIC_DRAW);
+
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(NDC_coefficients), NDC_coefficients);
+
+    GLuint location = 0; // "(location = 0)" em "shader_vertex.glsl"
+    GLint  number_of_dimensions = 4; // vec4 em "shader_vertex.glsl"
+    glVertexAttribPointer(location, number_of_dimensions, GL_FLOAT, GL_FALSE, 0, 0);
+
+    glEnableVertexAttribArray(location);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    GLfloat color_coefficients[16] = {};
+
+    for (int i=0; i<16; i+=4){
+        color_coefficients[i] = 1.0f;
+        color_coefficients[i+1] = 1.0f;
+        color_coefficients[i+2] = 1.0f;
+        color_coefficients[i+3] = 1.0f;
+    };
+
+    GLuint VBO_color_coefficients_id;
+    glGenBuffers(1, &VBO_color_coefficients_id);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_color_coefficients_id);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(color_coefficients), NULL, GL_STATIC_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(color_coefficients), color_coefficients);
+    location = 1; // "(location = 1)" em "shader_vertex.glsl"
+    number_of_dimensions = 4; // vec4 em "shader_vertex.glsl"
+    glVertexAttribPointer(location, number_of_dimensions, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(location);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    index_type indices[]={3, 1, 0,
+                          3, 2, 1};
 
     // Criamos um buffer OpenGL para armazenar os índices acima
     GLuint indices_id;
@@ -1690,25 +1843,16 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     else
         jump = false;
 
-    // Se o usuário apertar a tecla P, utilizamos projeção perspectiva.
+    // Se o usuário apertar a tecla P
     if (key == GLFW_KEY_P && action == GLFW_PRESS)
     {
         // faz alguma coisa
     }
 
-    // Se o usuário apertar a tecla O, utilizamos projeção ortográfica.
+    // Se o usuário apertar a tecla O
     if (key == GLFW_KEY_O && action == GLFW_PRESS)
     {
-        if (!isLooking)
-        {
-            tecla_O_pressionada = true;
-            isLooking = !isLooking;
-        }
-        else
-        {
-            tecla_O_pressionada = false;
-            isLooking = !isLooking;
-        }
+        // Faz alguma coisa
     }
 
     // Se o usuário apertar a tecla H, fazemos um "toggle" do texto informativo mostrado na tela.
@@ -1910,6 +2054,20 @@ void TextRendering_ShowPieces(GLFWwindow* window)
     snprintf(buffer, 80, "Pieces = %d/4\n", pieces);
 
     TextRendering_PrintString(window, buffer, -1.0f+pad/2, -1.0+pad/2, 1.5f);
+}
+
+// Escrevemos na tela o número de balas que o jogador ainda possui
+void TextRendering_ShowGameOver(GLFWwindow* window)
+{
+    if ( !g_ShowInfoText )
+        return;
+
+    float pad = TextRendering_LineHeight(window);
+
+    char buffer[80];
+    snprintf(buffer, 80, "GAME OVER\n");
+
+    TextRendering_PrintString(window, buffer, -0.3f+pad, pad, 3.0f);
 }
 
 // Escrevemos na tela o número de quadros renderizados por segundo (frames per
