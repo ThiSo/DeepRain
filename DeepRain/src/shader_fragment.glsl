@@ -30,6 +30,8 @@ uniform mat4 projection;
 #define MOUNT 8
 #define BULLETS 9
 #define HITBOX 10
+#define PIECE 11
+#define TREE 12
 
 uniform int object_id;
 
@@ -49,6 +51,8 @@ uniform sampler2D TextureImage7; //FLYMONSTER
 uniform sampler2D TextureImage8; //SPACESHIP
 uniform sampler2D TextureImage9; //MOUNT
 uniform sampler2D TextureImage10; //BULLETS
+uniform sampler2D TextureImage11; //PIECE
+uniform sampler2D TextureImage12; // TREE
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec4 color;
@@ -106,7 +110,7 @@ void main()
         p_U = (atan(vecp[0], vecp[2]) + M_PI)/(2*M_PI);
         p_V = (asin(vecp[1]) + M_PI_2)/M_PI;
     }
-    else if ( object_id == BUNNY)
+    else if ( object_id == BUNNY )
     {
         Kd = vec3(0.008,0.4,0.8);
         Ks = vec3(0.8,0.8,0.8);
@@ -129,7 +133,8 @@ void main()
     }
     else if ( object_id == LIBERTY || object_id == MONSTER ||
               object_id == ROCK || object_id == FLYMONSTER ||
-              object_id == SPACESHIP || object_id == MOUNT )
+              object_id == SPACESHIP || object_id == MOUNT ||
+              object_id == PIECE || object_id == TREE)
     {
         // Coordenadas de textura da estatua, monstro ou pedra, obtidas dos arquivos OBJ.
         p_U = texcoords.x;
@@ -188,6 +193,14 @@ void main()
     else if (object_id == BULLETS)
     {
         Kd0 = texture(TextureImage10, vec2(p_U, p_V)).rgb;
+    }
+    else if (object_id == PIECE)
+    {
+        Kd0 = texture(TextureImage11, vec2(p_U, p_V)).rgb;
+    }
+    else if (object_id == TREE)
+    {
+        Kd0 = texture(TextureImage12, vec2(p_U, p_V)).rgb;
     }
 
     // Espectro da fonte de iluminação

@@ -972,10 +972,11 @@
 	<inttypes.h>
 	<stdint.h>
 
-1692297248 source:c:\users\vitor\onedrive\햞ea de trabalho\trabalho final fcg\deeprain\deeprain\src\main.cpp
+1692384376 source:c:\users\vitor\onedrive\햞ea de trabalho\trabalho final fcg\deeprain\deeprain\src\main.cpp
 	<cmath>
 	<cstdio>
 	<cstdlib>
+	<ctime>
 	<map>
 	<stack>
 	<string>
@@ -1893,7 +1894,12 @@
 1690338497 source:c:\users\vitor\onedrive\햞ea de trabalho\trabalho final fcg\deeprain\deeprain\src\tiny_obj_loader.cpp
 	"tiny_obj_loader.h"
 
-1692297623 source:c:\users\vitor\onedrive\햞ea de trabalho\trabalho final fcg\deeprain\deeprain\src\bezier.cpp
+1692300137 source:c:\users\vitor\onedrive\햞ea de trabalho\trabalho final fcg\deeprain\deeprain\src\bezier.cpp
+	<glm/mat4x4.hpp>
+	<glm/vec4.hpp>
+	<glm/gtc/type_ptr.hpp>
+	<cmath>
+	"iostream"
 
 1690928958 source:c:\users\thiago\desktop\fcg\trabalho final\deeprain\deeprain\src\colisions.cpp
 
@@ -1909,7 +1915,12 @@
 	<cmath>
 	"iostream"
 
-1692297623 source:c:\users\vitor\onedrive\햞ea de trabalho\trabalho final fcg\deeprain\deeprain\src\collisions.cpp
+1692300137 source:c:\users\vitor\onedrive\햞ea de trabalho\trabalho final fcg\deeprain\deeprain\src\collisions.cpp
+	<glm/mat4x4.hpp>
+	<glm/vec4.hpp>
+	<glm/gtc/type_ptr.hpp>
+	<cmath>
+	"iostream"
 
 1690925741 c:\users\thiago\desktop\fcg\trabalho final\deeprain\deeprain\src\colisions.cpp
 	<glm/mat4x4.hpp>
@@ -1933,9 +1944,9 @@
 	<cmath>
 	"iostream"
 
-1692297623 c:\users\vitor\onedrive\햞ea de trabalho\trabalho final fcg\deeprain\deeprain\src\collisions.h
+1692300137 c:\users\vitor\onedrive\햞ea de trabalho\trabalho final fcg\deeprain\deeprain\src\collisions.h
 
-1692297623 c:\users\vitor\onedrive\햞ea de trabalho\trabalho final fcg\deeprain\deeprain\src\bezier.h
+1692300137 c:\users\vitor\onedrive\햞ea de trabalho\trabalho final fcg\deeprain\deeprain\src\bezier.h
 
 1692300523 source:c:\users\thiago\desktop\fcg\trabalho final\deeprain\deeprain\src\bezier.cpp
 	<glm/mat4x4.hpp>

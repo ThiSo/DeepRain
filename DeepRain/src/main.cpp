@@ -20,6 +20,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 
 // Headers abaixo são específicos de C++
 #include <map>
@@ -61,6 +62,8 @@
 #define MOUNT 8
 #define BULLETS 9
 #define HITBOX 10
+#define PIECE 11
+#define TREE 12
 
 // Prints para debugging
 #include "iostream"
@@ -68,6 +71,8 @@ using namespace std;
 
 #include "collisions.h"
 #include "bezier.h"
+
+#define M_PI   3.14159265358979323846
 
 // Estrutura que representa um modelo geométrico carregado a partir de um
 // arquivo ".obj". Veja https://en.wikipedia.org/wiki/Wavefront_.obj_file .
@@ -165,6 +170,7 @@ void TextRendering_ShowBullets(GLFWwindow* window);
 void TextRendering_ShowLifes(GLFWwindow* window);
 void TextRendering_ShowPieces(GLFWwindow* window);
 void TextRendering_ShowGameOver(GLFWwindow* window);
+void TextRendering_ShowTime(GLFWwindow* window);
 void TextRendering_ShowFramesPerSecond(GLFWwindow* window);
 
 // Funções callback para comunicação com o sistema operacional e interação do
@@ -234,8 +240,17 @@ int monster_lifes = 3;
 
 //////////////////////////////////////////////
 
+class Piece {
+    public:
+        glm::vec4 position;
+        float angle = 2 * M_PI;
+        bool collected = false;
+};
+
+std::vector<Piece> piece;
+
 int num_lifes = 3;
-int pieces = 0;
+int num_pieces = 0;
 
 // def do vetor de indices
 typedef GLubyte index_type;
@@ -407,6 +422,8 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/tc-spaceship.jpg");                 // TextureImage8
     LoadTextureImage("../../data/tc-mount.jpg");                     // TextureImage9
     LoadTextureImage("../../data/tc-bullet.jpg");                    // TextureImage10
+    LoadTextureImage("../../data/tc-piece.png");                     // TextureImage11
+    LoadTextureImage("../../data/tc-tree.jpg");                      // TextureImage12
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -449,6 +466,14 @@ int main(int argc, char* argv[])
     ComputeNormals(&bulletmodel);
     BuildTrianglesAndAddToVirtualScene(&bulletmodel);
 
+    ObjModel piecemodel("../../data/piece.obj");
+    ComputeNormals(&piecemodel);
+    BuildTrianglesAndAddToVirtualScene(&piecemodel);
+
+    ObjModel treemodel("../../data/tree.obj");
+    ComputeNormals(&treemodel);
+    BuildTrianglesAndAddToVirtualScene(&treemodel);
+
     if ( argc > 1 )
     {
         ObjModel model(argv[1]);
@@ -485,7 +510,7 @@ int main(int argc, char* argv[])
 
     // Inicialização dos monstros /////////////////////////////////////////
 
-    std::vector<glm::vec3> posVector;
+    std::vector<glm::vec3> posVectorMonster;
 
     glm::vec3 monster_0_position = glm::vec3(-50.0f, 0.6f, 0.0f);
     glm::vec3 monster_1_position = glm::vec3(-30.0f, 0.6f, -30.0f);
@@ -498,18 +523,18 @@ int main(int argc, char* argv[])
     glm::vec3 monster_8_position = glm::vec3(35.0f, 0.6f, 35.0f);
     glm::vec3 monster_9_position = glm::vec3(50.0f, 0.6f, 50.0f);
 
-    posVector.push_back(monster_0_position);
-    posVector.push_back(monster_1_position);
-    posVector.push_back(monster_2_position);
-    posVector.push_back(monster_3_position);
-    posVector.push_back(monster_4_position);
-    posVector.push_back(monster_5_position);
-    posVector.push_back(monster_6_position);
-    posVector.push_back(monster_7_position);
-    posVector.push_back(monster_8_position);
-    posVector.push_back(monster_9_position);
+    posVectorMonster.push_back(monster_0_position);
+    posVectorMonster.push_back(monster_1_position);
+    posVectorMonster.push_back(monster_2_position);
+    posVectorMonster.push_back(monster_3_position);
+    posVectorMonster.push_back(monster_4_position);
+    posVectorMonster.push_back(monster_5_position);
+    posVectorMonster.push_back(monster_6_position);
+    posVectorMonster.push_back(monster_7_position);
+    posVectorMonster.push_back(monster_8_position);
+    posVectorMonster.push_back(monster_9_position);
 
-    for (const glm::vec3& monster_position : posVector) {
+    for (const glm::vec3& monster_position : posVectorMonster) {
 
         Monster new_monster;
 
@@ -518,6 +543,33 @@ int main(int argc, char* argv[])
     }
 
     ///////////////////////////////////////////////////////////////////////
+
+    // Inicialização das partes da nave ///////////////////////////////////
+
+    std::vector<glm::vec3> posVectorPiece;
+
+    srand(time(0));
+
+    glm::vec3 piece_0_position = glm::vec3(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
+    glm::vec3 piece_1_position = glm::vec3(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f));
+    glm::vec3 piece_2_position = glm::vec3(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
+    glm::vec3 piece_3_position = glm::vec3(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f));
+    glm::vec3 piece_4_position = glm::vec3(fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
+
+    posVectorPiece.push_back(piece_0_position);
+    posVectorPiece.push_back(piece_1_position);
+    posVectorPiece.push_back(piece_2_position);
+    posVectorPiece.push_back(piece_3_position);
+    posVectorPiece.push_back(piece_4_position);
+
+
+    for(const glm::vec3& piece_position : posVectorPiece) {
+
+        Piece new_piece;
+
+        new_piece.position = glm::vec4(piece_position.x, piece_position.y, piece_position.z, 1.0f);
+        piece.push_back(new_piece);
+    }
 
     // Ficamos em um loop infinito, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
@@ -598,6 +650,14 @@ int main(int argc, char* argv[])
                 camera_position_c.z = prevz_camera_position_c + 2.0f;
             }
 
+        }
+
+        for (size_t i = 0; i < piece.size(); i++) {
+
+            if (ColisaoPontoEsfera(camera_position_c, piece[i].position, 0.8f && piece[i].collected == false)) {
+                num_pieces++;
+                piece[i].collected = true;
+            }
         }
 
         //////////////////////////////////////////////////////////////////////////
@@ -842,6 +902,33 @@ int main(int argc, char* argv[])
 
         //////////////////////////////////////////////////////////////////////////
 
+        /////////////////// PEDAÇO DA NAVE ///////////////////////////////////////
+
+        for(int i = 0; i < 5; i++){
+            if(piece[i].collected == false){
+                model = Matrix_Translate(piece[i].position.x, piece[i].position.y, piece[i].position.z)
+                      * Matrix_Scale(0.4f, 0.4f, 0.4f)
+                      * Matrix_Rotate_Y(fmod(prev_time, piece[i].angle));
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, PIECE);
+                DrawVirtualObject("the_piece");
+            }
+
+        }
+
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// Arvore ///////////////////////////////////////////////
+
+        model = Matrix_Translate(-40.0f, 8.0f, 60.0f)
+              * Matrix_Scale(10.0f, 10.0f, 10.0f);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, TREE);
+        DrawVirtualObject("the_tree");
+
+
+        //////////////////////////////////////////////////////////////////////////
+
         /////////////////// BEZIER ///////////////////////////////////////////////
 
         // Calcula a posição atual do objeto na curva de Bezier
@@ -923,6 +1010,9 @@ int main(int argc, char* argv[])
             // Imprimimos na tela informação sobre o número de quadros renderizados
             // por segundo (frames per second).
             TextRendering_ShowFramesPerSecond(window);
+
+            // Imprimimos na tela a quantidade de tempo restante até que o oxigênio acabe
+            TextRendering_ShowTime(window);
 
             // desenha a crossair na frente da tela
             glDisable(GL_DEPTH_TEST);
@@ -1273,6 +1363,8 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage8"), 8);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage9"), 9);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage10"), 10);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage11"), 11);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage12"), 12);
 
     glUseProgram(0);
 }
@@ -2051,7 +2143,7 @@ void TextRendering_ShowPieces(GLFWwindow* window)
     float pad = TextRendering_LineHeight(window);
 
     char buffer[80];
-    snprintf(buffer, 80, "Pieces = %d/4\n", pieces);
+    snprintf(buffer, 80, "Pieces = %d/5\n", num_pieces);
 
     TextRendering_PrintString(window, buffer, -1.0f+pad/2, -1.0+pad/2, 1.5f);
 }
@@ -2068,6 +2160,29 @@ void TextRendering_ShowGameOver(GLFWwindow* window)
     snprintf(buffer, 80, "GAME OVER\n");
 
     TextRendering_PrintString(window, buffer, -0.3f+pad, pad, 3.0f);
+}
+
+// Escrevemos na tela o tempo restante até que o oxigênio acabe
+void TextRendering_ShowTime(GLFWwindow* window)
+{
+    if ( !g_ShowInfoText )
+        return;
+
+    float pad = TextRendering_LineHeight(window);
+
+    int minutes = 9 - floor(glfwGetTime()/60.0f);
+    int seconds = 59 - floor(fmod(glfwGetTime(), 60.0f));
+
+    char buffer[80];
+    if(seconds < 10){
+        snprintf(buffer, 80, "0%d:0%d", minutes, seconds);
+    }
+    else{
+        snprintf(buffer, 80, "0%d:%d", minutes, seconds);
+    }
+
+
+    TextRendering_PrintString(window, buffer, -0.1f+pad/3 , 0.9+pad/2, 1.5f);
 }
 
 // Escrevemos na tela o número de quadros renderizados por segundo (frames per
