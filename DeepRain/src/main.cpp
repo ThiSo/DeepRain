@@ -207,13 +207,27 @@ std::map<std::string, SceneObject> g_VirtualScene;
 // Pilha que guardará as matrizes de modelagem.
 std::stack<glm::mat4>  g_MatrixStack;
 
+// Classe / Vector para o jogador ////////////
+
+class Player {
+    public:
+        glm::vec4 position;
+        float speed = 10.f;
+        int lifes = 3;
+};
+
+std::vector<Player> player;
+
+int num_lifes = 3;
+
 // Classe / Vector para armazenar projéteis //
 
 class Projectile {
     public:
-        glm::vec3 position;
-        glm::vec3 speed;
+        glm::vec4 position;
+        glm::vec4 speed;
         bool is_active;
+        float radius = 0.25f;
 
         Projectile() : is_active(false) {}
 };
@@ -228,16 +242,18 @@ bool reload = false;
 class Monster {
     public:
         glm::vec4 position;
+        glm::vec4 hitbox;
         bool is_alive = true;
         bool proximo = false;
         float speed = 2.0f;
         float angle = 0.0f;
+        float radius = 1.5f;
         int lifes = 3;
 };
 
 std::vector<Monster> monster;
 
-//////////////////////////////////////////////
+// Classe / Vector para o boss ///////////////
 
 class Boss {
     public:
@@ -245,29 +261,32 @@ class Boss {
         bool is_alive = false;
         float speed = 3.0f;
         float angle = 0.0f;
+        float radius = 11.0f;
         int lifes = 3000;
 };
 
-//////////////////////////////////////////////
+// Classe / Vector para a nave ///////////////
 
-class Starship {
+class Spaceship {
     public:
         glm::vec4 position;
+        float radius = 1.5;
         int lifes = 1;
 };
 
-//////////////////////////////////////////////
+// Classe / Vector para as peças  ////////////
 
 class Piece {
     public:
         glm::vec4 position;
+        glm::vec4 hitbox;
         float angle = 2 * M_PI;
+        float radius = 0.8;
         bool collected = false;
 };
 
 std::vector<Piece> piece;
 
-int num_lifes = 3;
 int num_pieces = 0;
 
 // def do vetor de indices
@@ -507,7 +526,6 @@ int main(int argc, char* argv[])
     glFrontFace(GL_CCW);
 
     // adições pra atualização da câmera
-    float speed = 10.0f; // Velocidade da câmera
     float prev_time = (float)glfwGetTime();
 
     // float monster_speed = 2.0f;
@@ -518,6 +536,12 @@ int main(int argc, char* argv[])
     float prevz_camera_position_c;
 
     float t = 0.0f;     // Parâmetro de interpolação da curva de beziér
+
+    // Inicialização do Player ////////////////////////////////////////////
+
+    Player player;
+
+    player.position = glm::vec4(camera_position_c.x, camera_position_c.y, camera_position_c.z, 1.0f);
 
     // Inicialização dos monstros /////////////////////////////////////////
 
@@ -550,6 +574,7 @@ int main(int argc, char* argv[])
         Monster new_monster;
 
         new_monster.position = glm::vec4(monster_position.x, monster_position.y, monster_position.z, 1.0f);
+        new_monster.hitbox = new_monster.position;
         monster.push_back(new_monster);
     }
 
@@ -579,6 +604,7 @@ int main(int argc, char* argv[])
         Piece new_piece;
 
         new_piece.position = glm::vec4(piece_position.x, piece_position.y, piece_position.z, 1.0f);
+        new_piece.hitbox = new_piece.position;
         piece.push_back(new_piece);
     }
 
@@ -594,9 +620,9 @@ int main(int argc, char* argv[])
 
     // Inicialização da nave //////////////////////////////////////////////
 
-    glm::vec3 starship_position = glm::vec3(0.0f, 0.0f, 7.5f);
-    Starship starship;
-    starship.position = glm::vec4(starship_position.x, starship_position.y, starship_position.z, 1.0f);
+    glm::vec3 spaceship_position = glm::vec3(0.0f, 0.0f, 7.5f);
+    Spaceship spaceship;
+    spaceship.position = glm::vec4(spaceship_position.x, spaceship_position.y, spaceship_position.z, 1.0f);
 
     ///////////////////////////////////////////////////////////////////////
 
@@ -608,8 +634,9 @@ int main(int argc, char* argv[])
     glm::vec3 plane_position = glm::vec3(0.0f, -1.0f, 0.0f);
     glm::vec3 fly_position;
 
-    glm::vec3 bunny_position = glm::vec3(55.0f, 28.125f, 30.0f);
+    glm::vec4 bunny_position = glm::vec4(55.0f, 28.125f, 30.0f, 1.0f);
     bool bunny_alive = true;
+    float bunny_radius = 2.0f;
 
     // Pontos de controle da primeira curva de bezier
     glm::vec3 ponto_controle_1 = glm::vec3(40.0f, 10.0f, 70.0f);
@@ -622,6 +649,14 @@ int main(int argc, char* argv[])
     glm::vec3 ponto_controle_6 = glm::vec3(60.0f, 35.0f, 10.0f);
     glm::vec3 ponto_controle_7 = glm::vec3(20.0f, 50.0f, 10.0f);
     glm::vec3 ponto_controle_8 = glm::vec3(40.0f, 10.0f, 70.0f);
+
+    ///////////////////////////////////////////////////////////////////////
+
+    // Inicialização das hitboxes /////////////////////////////////////////
+
+    glm::vec4 hitbox_bunny = bunny_position;
+    glm::vec4 hitbox_boss = boss.position;
+    glm::vec4 hitbox_spaceship = glm::vec4(spaceship.position.x - 2.5f, spaceship.position.y, spaceship.position.z + 2.5f, 1.0f);
 
     ///////////////////////////////////////////////////////////////////////
 
@@ -671,55 +706,76 @@ int main(int argc, char* argv[])
 
         // Realiza movimentação do jogador
         if (tecla_W_pressionada)
-            camera_position_c += -w * speed * delta_t;
+            camera_position_c += -w * player.speed * delta_t;
 
         if (tecla_A_pressionada)
-            camera_position_c += -u * speed * delta_t;
+            camera_position_c += -u * player.speed * delta_t;
 
         if (tecla_S_pressionada)
-            camera_position_c += w * speed * delta_t;
+            camera_position_c += w * player.speed * delta_t;
 
         if (tecla_D_pressionada)
-            camera_position_c += u * speed * delta_t;
+            camera_position_c += u * player.speed * delta_t;
+
+        player.position = camera_position_c;
 
         //////////////////////////////////////////////////////////////////////////
 
         /////////////////// COLISÕES /////////////////////////////////////////////
 
-
         // Checa colisões após o jogador ter se movimentado
-        if (ColisaoPontoPlano(camera_position_c, glm::vec4(0.0f, 1.0f, 0.0f, 0.0f)))
+        if (ColisaoPontoPlano(player.position, glm::vec4(0.0f, 1.0f, 0.0f, 0.0f)))
         {
             // cout << "Colisao";
-            camera_position_c.y = prevy_camera_position_c;
+            player.position.y = prevy_camera_position_c;
         }
 
         for (size_t i = 0; i < monster.size(); ++i) {
 
-            if (ColisaoPontoEsfera(camera_position_c, monster[i].position, 2.0f) && monster[i].lifes > 0)
+            if (ColisaoPontoEsfera(player.position, monster[i].position, monster[i].radius) && monster[i].lifes > 0)
             {
                 // Se o jogador for atingido pelo monstro, perde uma vida
-                num_lifes--;
-                if (num_lifes < 0)
-                    num_lifes = 0;
+                player.lifes--;
+                if (player.lifes < 0)
+                    player.lifes = 0;
+                num_lifes = player.lifes;
 
                 // Reposiciona o jogador caso ele tome dano
-                camera_position_c.x = prevx_camera_position_c + 2.0f;
-                camera_position_c.z = prevz_camera_position_c + 2.0f;
+                player.position.x = prevx_camera_position_c + 2.0f;
+                player.position.z = prevz_camera_position_c + 2.0f;
             }
 
         }
 
         for (size_t i = 0; i < piece.size(); i++) {
 
-            if (ColisaoPontoEsfera(camera_position_c, piece[i].position, 0.8f && piece[i].collected == false)) {
+            if (ColisaoPontoEsfera(player.position, piece[i].hitbox, piece[i].radius) && piece[i].collected == false) {
                 num_pieces++;
                 piece[i].collected = true;
             }
         }
 
-        if (ColisaoPontoEsfera(camera_position_c, glm::vec4(bunny_position.x, bunny_position.y, bunny_position.z, 1.0f), 2.0f))
+        if (ColisaoPontoEsfera(player.position, hitbox_bunny, bunny_radius))
             bunny_alive = false;
+
+        if (ColisaoPontoEsfera(player.position, hitbox_spaceship, spaceship.radius) && !boss.is_alive)
+        {
+            cout << "Colidiu";
+        }
+
+        if (ColisaoEsferaEsfera(hitbox_spaceship, spaceship.radius, hitbox_boss, boss.radius))
+        {
+             // Imprimimos na tela a mensagem de fim de jogo
+            TextRendering_ShowGameOver(window);
+
+            // desenha a tela de game over
+            glDisable(GL_DEPTH_TEST);
+            glBindVertexArray(vertex_array_object_id_gameoverscreen);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, 0);
+            glEnable(GL_DEPTH_TEST);
+        }
+
+        camera_position_c = player.position;
 
         //////////////////////////////////////////////////////////////////////////
 
@@ -731,7 +787,7 @@ int main(int argc, char* argv[])
             {
 
                 // Checa se o jogador se aproximou o suficiente do monstro para que este o note
-                if (length(camera_position_c - monster[i].position) < 15.0f)
+                if (length(player.position - monster[i].position) < 15.0f)
                     monster[i].proximo = true;
                 else
                     monster[i].proximo = false;
@@ -740,19 +796,21 @@ int main(int argc, char* argv[])
                 if (monster[i].proximo)
                 {
                     // Atualiza a rotação do monstro pra sempre estar olhando pro jogador
-                    monster[i].angle = -atan2(monster[i].position.z - camera_position_c.z, monster[i].position.x - camera_position_c.x);
+                    monster[i].angle = -atan2(monster[i].position.z - player.position.z, monster[i].position.x - player.position.x);
 
-                    if (camera_position_c.x - 1.25f < monster[i].position.x)
+                    if (player.position.x - 1.0f < monster[i].position.x)
                         monster[i].position.x -= monster[i].speed * delta_t;
 
-                    if (camera_position_c.x + 1.25f> monster[i].position.x)
+                    if (player.position.x + 1.0f> monster[i].position.x)
                         monster[i].position.x += monster[i].speed  * delta_t;
 
-                    if (camera_position_c.z - 1.25f < monster[i].position.z)
+                    if (player.position.z - 1.0f < monster[i].position.z)
                         monster[i].position.z -= monster[i].speed  * delta_t;
 
-                    if (camera_position_c.z + 1.25f > monster[i].position.z)
+                    if (player.position.z + 1.0f > monster[i].position.z)
                         monster[i].position.z += monster[i].speed  * delta_t;
+
+                    monster[i].hitbox = monster[i].position;
 
                 }
             }
@@ -765,11 +823,13 @@ int main(int argc, char* argv[])
         if (num_pieces == 5)
         {
             boss.is_alive = true;
-            glm::vec3 direction = boss.position - starship.position;
+            glm::vec3 direction = boss.position - spaceship.position;
             boss.angle = -atan2(direction.z, direction.x);
 
-            boss.position.x -= 0.05 * direction.x * delta_t;
-            boss.position.z -= 0.05 * direction.z * delta_t;
+            boss.position.x -= direction.x * delta_t;
+            boss.position.z -= direction.z * delta_t;
+
+            hitbox_boss = boss.position;
         }
 
         //////////////////////////////////////////////////////////////////////////
@@ -805,7 +865,7 @@ int main(int argc, char* argv[])
 
         /////////////////// SKYBOX ///////////////////////////////////////////////
 
-        model = Matrix_Translate(camera_position_c.x, camera_position_c.y, camera_position_c.z);
+        model = Matrix_Translate(player.position.x, player.position.y, player.position.z);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, SKYBOX);
         glDisable(GL_CULL_FACE);
@@ -828,8 +888,8 @@ int main(int argc, char* argv[])
 
             // Propriedades do tiro
             new_shot.is_active = true;
-            new_shot.position = glm::vec3(camera_position_c.x, camera_position_c.y, camera_position_c.z);
-            new_shot.speed = glm::vec3(5*camera_view_vector.x, 5*camera_view_vector.y, 5*camera_view_vector.z);
+            new_shot.position = glm::vec4(player.position.x, player.position.y, player.position.z, 1.0f);
+            new_shot.speed = glm::vec4(5 * camera_view_vector.x, 5 * camera_view_vector.y, 5 * camera_view_vector.z, 0.0f);
             shot.push_back(new_shot);
 
             // Diminui o número de tiros possíveis
@@ -850,13 +910,12 @@ int main(int argc, char* argv[])
                 shot[i].position += shot[i].speed * delta_t;
 
                 // Se o tiro percorreu mais de 20 unidades de distância ou colidiu com um monstro, ele some
-                if (length(camera_position_c - glm::vec4(shot[i].position.x, shot[i].position.y, shot[i].position.z, 1.0f)) > 20.0f)
+                if (length(player.position - shot[i].position) > 20.0f)
                     shot[i].is_active = false;
 
-                for (size_t j = 0; j < monster.size(); ++j)
+                for (size_t j = 0; j < monster.size(); j++)
                 {
-                    if (ColisaoEsferaEsfera(glm::vec4(shot[i].position.x, shot[i].position.y, shot[i].position.z, 1.0f), 0.25f,
-                                             monster[j].position, 1.5f))
+                    if (ColisaoEsferaEsfera(shot[i].position, shot[i].radius, monster[j].hitbox, monster[j].radius))
                     {
                         shot[i].is_active = false;
                         monster[j].lifes--;
@@ -865,6 +924,13 @@ int main(int argc, char* argv[])
                         if (monster[j].lifes < 0)
                             monster[j].lifes = 0;
                     }
+                }
+
+                if (ColisaoEsferaEsfera(shot[i].position, shot[i].radius, boss.position, boss.radius))
+                {
+                    boss.lifes--;
+                    if (boss.lifes < 0)
+                        boss.lifes = 0;
                 }
 
                 // Desenha o tiro após feita a atualização
@@ -957,7 +1023,7 @@ int main(int argc, char* argv[])
 
         /////////////////// NAVE /////////////////////////////////////////////////
 
-        model = Matrix_Translate(starship.position.x, starship.position.y, starship.position.z)
+        model = Matrix_Translate(spaceship.position.x, spaceship.position.y, spaceship.position.z)
               * Matrix_Scale(5.0f, 5.0f, 5.0f)
               * Matrix_Rotate_Y(3.141592f*0.75f);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
@@ -1023,7 +1089,7 @@ int main(int argc, char* argv[])
         else
             fly_position = CalculaBezier(t, ponto_controle_5, ponto_controle_6, ponto_controle_7, ponto_controle_8);
 
-        fly_monster_angle = -atan2(fly_position.z - camera_position_c.z, fly_position.x - camera_position_c.x);
+        fly_monster_angle = -atan2(fly_position.z - player.position.z, fly_position.x - player.position.x);
 
         model = Matrix_Translate(fly_position.x, fly_position.y, fly_position.z)
               * Matrix_Rotate_Y(fly_monster_angle);
@@ -1045,44 +1111,55 @@ int main(int argc, char* argv[])
 
         /////////////////// HITBOXES /////////////////////////////////////////////
 
-        for(int i=0; i<2; i++)
+        for (size_t i = 0; i < monster.size(); ++i)
         {
-
-            if (i==0)
+            if (monster[i].is_alive)
             {
-                for (size_t i = 0; i < monster.size(); ++i)
-                {
-                    if (monster[i].is_alive)
-                    {
-                       // Esfera de colisão centrada nos monstros
-                        model = Matrix_Translate(monster[i].position.x, monster[i].position.y, monster[i].position.z);
-                        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-                        glUniform1i(g_object_id_uniform, HITBOX);
-                        glEnable(GL_BLEND);
-                        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                        DrawVirtualObject("the_sphere");
-                        glDisable(GL_BLEND);
-                    }
-                }
-            }
-            else
-            {
-                // Esfera de colisão centrada no coelho
-                model = Matrix_Translate(bunny_position.x, bunny_position.y, bunny_position.z)
-                      * Matrix_Scale(0.1f, 0.1f, 0.1f);
+                // Esfera de colisão centrada nos monstros
+                model = Matrix_Translate(monster[i].hitbox.x, monster[i].hitbox.y, monster[i].hitbox.z)
+                      * Matrix_Scale(1.5f, 1.5f, 1.5f);
                 glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
                 glUniform1i(g_object_id_uniform, HITBOX);
                 glEnable(GL_BLEND);
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                if (!ColisaoPontoEsfera(camera_position_c, glm::vec4(55.0f, 28.125f, 30.0f, 1.0f), 2.0f))
-                    DrawVirtualObject("the_sphere");
+                DrawVirtualObject("the_sphere");
                 glDisable(GL_BLEND);
             }
         }
 
+        // Esfera de colisão centrada no coelho
+        model = Matrix_Translate(hitbox_bunny.x, hitbox_bunny.y, hitbox_bunny.z)
+              * Matrix_Scale(2.0f, 2.0f, 2.0f);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, HITBOX);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        DrawVirtualObject("the_sphere");
+        glDisable(GL_BLEND);
+
+        // Esfera de colisão centrada na nave
+        model = Matrix_Translate(hitbox_spaceship.x, hitbox_spaceship.y, hitbox_spaceship.z)
+              * Matrix_Scale(2.0f, 2.0f, 2.0f);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, HITBOX);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        DrawVirtualObject("the_sphere");
+        glDisable(GL_BLEND);
+
+        // Esfera de colisão centrada no boss
+        model = Matrix_Translate(hitbox_boss.x, hitbox_boss.y, hitbox_boss.z)
+              * Matrix_Scale(11.0f, 11.0f, 11.0f);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, HITBOX);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        DrawVirtualObject("the_sphere");
+        glDisable(GL_BLEND);
+
         //////////////////////////////////////////////////////////////////////////
 
-        if (num_lifes > 0)
+        if (player.lifes > 0)
         {
             // Imprimimos na tela a quantidade de tiros que o jogador possui
             TextRendering_ShowBullets(window);
