@@ -64,6 +64,7 @@
 #define HITBOX 10
 #define PIECE 11
 #define TREE 12
+#define BOSS 13
 
 // Prints para debugging
 #include "iostream"
@@ -236,7 +237,24 @@ class Monster {
 
 std::vector<Monster> monster;
 
-int monster_lifes = 3;
+//////////////////////////////////////////////
+
+class Boss {
+    public:
+        glm::vec4 position;
+        bool is_alive = false;
+        float speed = 3.0f;
+        float angle = 0.0f;
+        int lifes = 3000;
+};
+
+//////////////////////////////////////////////
+
+class Starship {
+    public:
+        glm::vec4 position;
+        int lifes = 1;
+};
 
 //////////////////////////////////////////////
 
@@ -315,19 +333,6 @@ glm::vec4 camera_position_c = glm::vec4(0.0f, 1.0f, 2.0f, 1.0f);
 
 // Variáveis para o monstro com movimentação dada por curva de bezier
 bool ciclo_voo = true;
-glm::vec3 posicao_curva;
-
-// Pontos de controle da primeira curva de bezier
-glm::vec3 ponto_controle_1 = glm::vec3(40.0f, 10.0f, 70.0f);
-glm::vec3 ponto_controle_2 = glm::vec3(52.0f, 35.0f, 40.0f);
-glm::vec3 ponto_controle_3 = glm::vec3(70.0f, 50.0f, 70.0f);
-glm::vec3 ponto_controle_4 = glm::vec3(85.0f, 20.0f, 40.0f);
-
-// Pontos de controle da segunda curva de bezier
-glm::vec3 ponto_controle_5 = glm::vec3(85.0f, 20.0f, 40.0f);
-glm::vec3 ponto_controle_6 = glm::vec3(60.0f, 35.0f, 10.0f);
-glm::vec3 ponto_controle_7 = glm::vec3(20.0f, 50.0f, 10.0f);
-glm::vec3 ponto_controle_8 = glm::vec3(40.0f, 10.0f, 70.0f);
 
 // Número de texturas carregadas pela função LoadTextureImage()
 GLuint g_NumLoadedTextures = 0;
@@ -424,6 +429,8 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/tc-bullet.jpg");                    // TextureImage10
     LoadTextureImage("../../data/tc-piece.png");                     // TextureImage11
     LoadTextureImage("../../data/tc-tree.jpg");                      // TextureImage12
+    LoadTextureImage("../../data/tc-boss_metal.jpg");                // TextureImage13
+    LoadTextureImage("../../data/tc-boss_body.jpg");                 // TextureImage14
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -473,6 +480,10 @@ int main(int argc, char* argv[])
     ObjModel treemodel("../../data/tree.obj");
     ComputeNormals(&treemodel);
     BuildTrianglesAndAddToVirtualScene(&treemodel);
+
+    ObjModel bossmodel("../../data/boss.obj");
+    ComputeNormals(&bossmodel);
+    BuildTrianglesAndAddToVirtualScene(&bossmodel);
 
     if ( argc > 1 )
     {
@@ -571,6 +582,49 @@ int main(int argc, char* argv[])
         piece.push_back(new_piece);
     }
 
+    ///////////////////////////////////////////////////////////////////////
+
+    // Inicialização do boss //////////////////////////////////////////////
+
+    glm::vec3 boss_position = glm::vec3(100.0f, 11.0f, -100.0f);
+    Boss boss;
+    boss.position = glm::vec4(boss_position.x, boss_position.y, boss_position.z, 1.0f);
+
+    ///////////////////////////////////////////////////////////////////////
+
+    // Inicialização da nave //////////////////////////////////////////////
+
+    glm::vec3 starship_position = glm::vec3(0.0f, 0.0f, 7.5f);
+    Starship starship;
+    starship.position = glm::vec4(starship_position.x, starship_position.y, starship_position.z, 1.0f);
+
+    ///////////////////////////////////////////////////////////////////////
+
+    // Inicialização dos outros objetos ///////////////////////////////////
+
+    glm::vec3 statue_position = glm::vec3(-60.0f, 10.0f, -60.0f);
+    glm::vec3 mount_position = glm::vec3(55.0f, 18.0f, 30.0f);
+    glm::vec3 tree_position = glm::vec3(-40.0f, 8.0f, 60.0f);
+    glm::vec3 plane_position = glm::vec3(0.0f, -1.0f, 0.0f);
+    glm::vec3 fly_position;
+
+    glm::vec3 bunny_position = glm::vec3(55.0f, 28.125f, 30.0f);
+    bool bunny_alive = true;
+
+    // Pontos de controle da primeira curva de bezier
+    glm::vec3 ponto_controle_1 = glm::vec3(40.0f, 10.0f, 70.0f);
+    glm::vec3 ponto_controle_2 = glm::vec3(52.0f, 35.0f, 40.0f);
+    glm::vec3 ponto_controle_3 = glm::vec3(70.0f, 50.0f, 70.0f);
+    glm::vec3 ponto_controle_4 = glm::vec3(85.0f, 20.0f, 40.0f);
+
+    // Pontos de controle da segunda curva de bezier
+    glm::vec3 ponto_controle_5 = glm::vec3(85.0f, 20.0f, 40.0f);
+    glm::vec3 ponto_controle_6 = glm::vec3(60.0f, 35.0f, 10.0f);
+    glm::vec3 ponto_controle_7 = glm::vec3(20.0f, 50.0f, 10.0f);
+    glm::vec3 ponto_controle_8 = glm::vec3(40.0f, 10.0f, 70.0f);
+
+    ///////////////////////////////////////////////////////////////////////
+
     // Ficamos em um loop infinito, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
     {
@@ -628,6 +682,10 @@ int main(int argc, char* argv[])
         if (tecla_D_pressionada)
             camera_position_c += u * speed * delta_t;
 
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// COLISÕES /////////////////////////////////////////////
+
 
         // Checa colisões após o jogador ter se movimentado
         if (ColisaoPontoPlano(camera_position_c, glm::vec4(0.0f, 1.0f, 0.0f, 0.0f)))
@@ -659,6 +717,9 @@ int main(int argc, char* argv[])
                 piece[i].collected = true;
             }
         }
+
+        if (ColisaoPontoEsfera(camera_position_c, glm::vec4(bunny_position.x, bunny_position.y, bunny_position.z, 1.0f), 2.0f))
+            bunny_alive = false;
 
         //////////////////////////////////////////////////////////////////////////
 
@@ -695,6 +756,20 @@ int main(int argc, char* argv[])
 
                 }
             }
+        }
+
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// MOVIMENTAÇÃO BOSS ////////////////////////////////////
+
+        if (num_pieces == 5)
+        {
+            boss.is_alive = true;
+            glm::vec3 direction = boss.position - starship.position;
+            boss.angle = -atan2(direction.z, direction.x);
+
+            boss.position.x -= 0.05 * direction.x * delta_t;
+            boss.position.z -= 0.05 * direction.z * delta_t;
         }
 
         //////////////////////////////////////////////////////////////////////////
@@ -806,21 +881,20 @@ int main(int argc, char* argv[])
 
         /////////////////// COELHO ///////////////////////////////////////////////
 
-        model = Matrix_Translate(55.0f, 28.125f, 30.0f)
+        model = Matrix_Translate(bunny_position.x, bunny_position.y, bunny_position.z)
               * Matrix_Rotate_Z(g_AngleZ)
               * Matrix_Rotate_Y(g_AngleY)
               * Matrix_Rotate_X(g_AngleX);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, BUNNY);
-
-        if (!ColisaoPontoEsfera(camera_position_c, glm::vec4(55.0f, 28.125f, 30.0f, 1.0f), 2.0f))
+        if (bunny_alive)
             DrawVirtualObject("the_bunny");
 
         //////////////////////////////////////////////////////////////////////////
 
         /////////////////// PLANO ////////////////////////////////////////////////
 
-        model = Matrix_Translate(0.0f,-1.0f,0.0f)
+        model = Matrix_Translate(plane_position.x, plane_position.y, plane_position.z)
               * Matrix_Scale(100.0f, 1.0f, 100.0f);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, PLANE);
@@ -830,7 +904,7 @@ int main(int argc, char* argv[])
 
         /////////////////// LIBERDADE ////////////////////////////////////////////
 
-        model = Matrix_Translate(-60.0f, 10.0f, -60.0f)
+        model = Matrix_Translate(statue_position.x, statue_position.y, statue_position.z)
               * Matrix_Scale(10.0f, 10.0f, 10.0f)
               * Matrix_Rotate_Y(3.141592f*0.75f);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
@@ -850,7 +924,7 @@ int main(int argc, char* argv[])
                       * Matrix_Rotate_Y(monster[i].angle);
                 glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
                 glUniform1i(g_object_id_uniform, MONSTER);
-                if (monster_lifes > 0)
+                if (monster[i].lifes > 0)
                     DrawVirtualObject("the_monster");
             }
 
@@ -883,7 +957,7 @@ int main(int argc, char* argv[])
 
         /////////////////// NAVE /////////////////////////////////////////////////
 
-        model = Matrix_Translate(0.0f, 0.0f, 7.5f)
+        model = Matrix_Translate(starship.position.x, starship.position.y, starship.position.z)
               * Matrix_Scale(5.0f, 5.0f, 5.0f)
               * Matrix_Rotate_Y(3.141592f*0.75f);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
@@ -894,7 +968,7 @@ int main(int argc, char* argv[])
 
         /////////////////// MORRO ////////////////////////////////////////////////
 
-        model = Matrix_Translate(55.0f, 18.0f, 30.0f)
+        model = Matrix_Translate(mount_position.x, mount_position.y, mount_position.z)
               * Matrix_Scale(20.0f, 20.0f, 20.0f);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, MOUNT);
@@ -920,26 +994,38 @@ int main(int argc, char* argv[])
 
         /////////////////// Arvore ///////////////////////////////////////////////
 
-        model = Matrix_Translate(-40.0f, 8.0f, 60.0f)
+        model = Matrix_Translate(tree_position.x, tree_position.y, tree_position.z)
               * Matrix_Scale(10.0f, 10.0f, 10.0f);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, TREE);
         DrawVirtualObject("the_tree");
 
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// Boss /////////////////////////////////////////////////
+
+        if(boss.is_alive) {
+            model = Matrix_Translate(boss.position.x, boss.position.y, boss.position.z)
+              * Matrix_Scale(10.0f, 10.0f, 10.0f)
+              * Matrix_Rotate_Y(boss.angle);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, BOSS);
+        DrawVirtualObject("the_boss");
+        }
 
         //////////////////////////////////////////////////////////////////////////
 
         /////////////////// BEZIER ///////////////////////////////////////////////
 
-        // Calcula a posição atual do objeto na curva de Bezier
+        // Calcula a posição atual do monstro na curva de Bezier
         if (ciclo_voo)
-            posicao_curva = CalculaBezier(t, ponto_controle_1, ponto_controle_2, ponto_controle_3, ponto_controle_4);
+            fly_position = CalculaBezier(t, ponto_controle_1, ponto_controle_2, ponto_controle_3, ponto_controle_4);
         else
-            posicao_curva = CalculaBezier(t, ponto_controle_5, ponto_controle_6, ponto_controle_7, ponto_controle_8);
+            fly_position = CalculaBezier(t, ponto_controle_5, ponto_controle_6, ponto_controle_7, ponto_controle_8);
 
-        fly_monster_angle = -atan2(posicao_curva.z - camera_position_c.z, posicao_curva.x - camera_position_c.x);
+        fly_monster_angle = -atan2(fly_position.z - camera_position_c.z, fly_position.x - camera_position_c.x);
 
-        model = Matrix_Translate(posicao_curva.x, posicao_curva.y, posicao_curva.z)
+        model = Matrix_Translate(fly_position.x, fly_position.y, fly_position.z)
               * Matrix_Rotate_Y(fly_monster_angle);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, FLYMONSTER);
@@ -982,7 +1068,7 @@ int main(int argc, char* argv[])
             else
             {
                 // Esfera de colisão centrada no coelho
-                model = Matrix_Translate(55.0f, 28.125f, 30.0f)
+                model = Matrix_Translate(bunny_position.x, bunny_position.y, bunny_position.z)
                       * Matrix_Scale(0.1f, 0.1f, 0.1f);
                 glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
                 glUniform1i(g_object_id_uniform, HITBOX);
@@ -1365,6 +1451,8 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage10"), 10);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage11"), 11);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage12"), 12);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage13"), 13);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage14"), 14);
 
     glUseProgram(0);
 }

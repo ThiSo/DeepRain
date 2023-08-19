@@ -32,6 +32,7 @@ uniform mat4 projection;
 #define HITBOX 10
 #define PIECE 11
 #define TREE 12
+#define BOSS 13
 
 uniform int object_id;
 
@@ -53,6 +54,8 @@ uniform sampler2D TextureImage9; //MOUNT
 uniform sampler2D TextureImage10; //BULLETS
 uniform sampler2D TextureImage11; //PIECE
 uniform sampler2D TextureImage12; // TREE
+uniform sampler2D TextureImage13; // BOSS BODY
+uniform sampler2D TextureImage14; // BOSS METAL
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec4 color;
@@ -134,7 +137,8 @@ void main()
     else if ( object_id == LIBERTY || object_id == MONSTER ||
               object_id == ROCK || object_id == FLYMONSTER ||
               object_id == SPACESHIP || object_id == MOUNT ||
-              object_id == PIECE || object_id == TREE)
+              object_id == PIECE || object_id == TREE      ||
+              object_id == BOSS)
     {
         // Coordenadas de textura da estatua, monstro ou pedra, obtidas dos arquivos OBJ.
         p_U = texcoords.x;
@@ -202,6 +206,11 @@ void main()
     {
         Kd0 = texture(TextureImage12, vec2(p_U, p_V)).rgb;
     }
+    else if (object_id == BOSS)
+    {
+        Kd0 = texture(TextureImage13, vec2(p_U, p_V)).rgb;
+        Kd1 = texture(TextureImage14, vec2(p_U, p_V)).rgb;
+    }
 
     // Espectro da fonte de iluminação
     vec3 I = vec3(1.0, 1.0, 1.0);
@@ -247,6 +256,8 @@ void main()
     // PARA TEXTURA
     if (object_id == BUNNY)
         color.rgb = Kd0 * (lambert + 0.1) + Kd1 * (invlambert + 0.25) + blinn_phong_specular_term;
+    else if (object_id == BOSS)
+        color.rgb = (Kd0 + Kd1) * (lambert + 0.1);
     else
         color.rgb = Kd0 * (lambert + 0.1);
 
