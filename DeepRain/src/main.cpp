@@ -65,6 +65,9 @@
 #define PIECE 11
 #define TREE 12
 #define BOSS 13
+#define BATTERY 14
+#define AMMO 15
+#define HEART 16
 
 // Prints para debugging
 #include "iostream"
@@ -212,7 +215,8 @@ std::stack<glm::mat4>  g_MatrixStack;
 class Player {
     public:
         glm::vec4 position;
-        float speed = 10.f;
+        float speed = 10.0f;
+        int damage = 1;
         int lifes = 3;
 };
 
@@ -258,11 +262,12 @@ std::vector<Monster> monster;
 class Boss {
     public:
         glm::vec4 position;
+        glm::vec4 hitbox;
         bool is_alive = false;
         float speed = 3.0f;
         float angle = 0.0f;
         float radius = 11.0f;
-        int lifes = 3000;
+        int lifes = 3;
 };
 
 // Classe / Vector para a nave ///////////////
@@ -270,7 +275,7 @@ class Boss {
 class Spaceship {
     public:
         glm::vec4 position;
-        float radius = 1.5;
+        float radius = 1.5f;
         int lifes = 1;
 };
 
@@ -281,13 +286,52 @@ class Piece {
         glm::vec4 position;
         glm::vec4 hitbox;
         float angle = 2 * M_PI;
-        float radius = 0.8;
+        float radius = 0.8f;
         bool collected = false;
 };
 
 std::vector<Piece> piece;
 
 int num_pieces = 0;
+
+// Classe / Vector para os upgrades de velocidade  ////////////
+
+class Battery {
+    public:
+        glm::vec4 position;
+        glm::vec4 hitbox;
+        float angle = 2 * M_PI;
+        float radius = 0.8f;
+        bool collected = false;
+};
+
+std::vector<Battery> battery;
+
+// Classe / Vector para os upgrades de dano  ////////////
+
+class Ammo {
+    public:
+        glm::vec4 position;
+        glm::vec4 hitbox;
+        float angle = 2 * M_PI;
+        float radius = 0.8f;
+        bool collected = false;
+};
+
+std::vector<Ammo> ammo;
+
+// Classe / Vector para as vidas extras  ////////////
+
+class Heart {
+    public:
+        glm::vec4 position;
+        glm::vec4 hitbox;
+        float angle = 2 * M_PI;
+        float radius = 0.8f;
+        bool collected = false;
+};
+
+std::vector<Heart> heart;
 
 // def do vetor de indices
 typedef GLubyte index_type;
@@ -450,6 +494,9 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/tc-tree.jpg");                      // TextureImage12
     LoadTextureImage("../../data/tc-boss_metal.jpg");                // TextureImage13
     LoadTextureImage("../../data/tc-boss_body.jpg");                 // TextureImage14
+    LoadTextureImage("../../data/tc-battery.jpg");                   // TextureImage15
+    LoadTextureImage("../../data/tc-heart.jpg");                     // TextureImage16
+
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -503,6 +550,18 @@ int main(int argc, char* argv[])
     ObjModel bossmodel("../../data/boss.obj");
     ComputeNormals(&bossmodel);
     BuildTrianglesAndAddToVirtualScene(&bossmodel);
+
+    ObjModel batterymodel("../../data/battery.obj");
+    ComputeNormals(&batterymodel);
+    BuildTrianglesAndAddToVirtualScene(&batterymodel);
+
+    ObjModel ammomodel("../../data/ammo.obj");
+    ComputeNormals(&ammomodel);
+    BuildTrianglesAndAddToVirtualScene(&ammomodel);
+
+    ObjModel heartmodel("../../data/heart.obj");
+    ComputeNormals(&heartmodel);
+    BuildTrianglesAndAddToVirtualScene(&heartmodel);
 
     if ( argc > 1 )
     {
@@ -610,11 +669,96 @@ int main(int argc, char* argv[])
 
     ///////////////////////////////////////////////////////////////////////
 
+    // Inicialização dos upgrades de velocidade ///////////////////////////
+
+    std::vector<glm::vec3> posVectorBattery;
+
+    glm::vec3 battery_0_position = glm::vec3(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
+    glm::vec3 battery_1_position = glm::vec3(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f));
+    glm::vec3 battery_2_position = glm::vec3(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
+    glm::vec3 battery_3_position = glm::vec3(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f));
+    glm::vec3 battery_4_position = glm::vec3(fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
+
+    posVectorBattery.push_back(battery_0_position);
+    posVectorBattery.push_back(battery_1_position);
+    posVectorBattery.push_back(battery_2_position);
+    posVectorBattery.push_back(battery_3_position);
+    posVectorBattery.push_back(battery_4_position);
+
+
+    for(const glm::vec3& battery_position : posVectorBattery) {
+
+        Battery new_battery;
+
+        new_battery.position = glm::vec4(battery_position.x, battery_position.y, battery_position.z, 1.0f);
+        new_battery.hitbox = new_battery.position;
+        battery.push_back(new_battery);
+    }
+
+    ///////////////////////////////////////////////////////////////////////
+
+    // Inicialização dos upgrades de dano /////////////////////////////////
+
+     std::vector<glm::vec3> posVectorAmmo;
+
+    glm::vec3 ammo_0_position = glm::vec3(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
+    glm::vec3 ammo_1_position = glm::vec3(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f));
+    glm::vec3 ammo_2_position = glm::vec3(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
+    glm::vec3 ammo_3_position = glm::vec3(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f));
+    glm::vec3 ammo_4_position = glm::vec3(fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
+
+    posVectorAmmo.push_back(ammo_0_position);
+    posVectorAmmo.push_back(ammo_1_position);
+    posVectorAmmo.push_back(ammo_2_position);
+    posVectorAmmo.push_back(ammo_3_position);
+    posVectorAmmo.push_back(ammo_4_position);
+
+
+    for(const glm::vec3& ammo_position : posVectorAmmo)
+    {
+        Ammo new_ammo;
+
+        new_ammo.position = glm::vec4(ammo_position.x, ammo_position.y, ammo_position.z, 1.0f);
+        new_ammo.hitbox = new_ammo.position;
+        ammo.push_back(new_ammo);
+    }
+
+    ///////////////////////////////////////////////////////////////////////
+
+    // Inicialização das vidas extras /////////////////////////////////
+
+     std::vector<glm::vec3> posVectorHeart;
+
+    glm::vec3 heart_0_position = glm::vec3(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
+    glm::vec3 heart_1_position = glm::vec3(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f));
+    glm::vec3 heart_2_position = glm::vec3(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
+    glm::vec3 heart_3_position = glm::vec3(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f));
+    glm::vec3 heart_4_position = glm::vec3(fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
+
+    posVectorHeart.push_back(heart_0_position);
+    posVectorHeart.push_back(heart_1_position);
+    posVectorHeart.push_back(heart_2_position);
+    posVectorHeart.push_back(heart_3_position);
+    posVectorHeart.push_back(heart_4_position);
+
+
+    for(const glm::vec3& heart_position : posVectorHeart)
+    {
+        Heart new_heart;
+
+        new_heart.position = glm::vec4(heart_position.x, heart_position.y, heart_position.z, 1.0f);
+        new_heart.hitbox = new_heart.position;
+        heart.push_back(new_heart);
+    }
+
+    ///////////////////////////////////////////////////////////////////////
+
     // Inicialização do boss //////////////////////////////////////////////
 
     glm::vec3 boss_position = glm::vec3(100.0f, 11.0f, -100.0f);
     Boss boss;
     boss.position = glm::vec4(boss_position.x, boss_position.y, boss_position.z, 1.0f);
+    boss.hitbox = boss.position;
 
     ///////////////////////////////////////////////////////////////////////
 
@@ -655,8 +799,7 @@ int main(int argc, char* argv[])
     // Inicialização das hitboxes /////////////////////////////////////////
 
     glm::vec4 hitbox_bunny = bunny_position;
-    glm::vec4 hitbox_boss = boss.position;
-    glm::vec4 hitbox_spaceship = glm::vec4(spaceship.position.x - 2.5f, spaceship.position.y, spaceship.position.z + 2.5f, 1.0f);
+    glm::vec4 hitbox_spaceship = glm::vec4(spaceship.position.x - 2.0f, spaceship.position.y, spaceship.position.z + 2.0f, 1.0f);
 
     ///////////////////////////////////////////////////////////////////////
 
@@ -755,6 +898,31 @@ int main(int argc, char* argv[])
             }
         }
 
+        for (size_t i = 0; i < battery.size(); i++) {
+
+            if (ColisaoPontoEsfera(player.position, battery[i].hitbox, battery[i].radius) && battery[i].collected == false) {
+                battery[i].collected = true;
+                player.speed += 1.0f;
+            }
+        }
+
+        for (size_t i = 0; i < ammo.size(); i++) {
+
+            if (ColisaoPontoEsfera(player.position, ammo[i].hitbox, ammo[i].radius) && ammo[i].collected == false) {
+                ammo[i].collected = true;
+                player.damage++;
+            }
+        }
+
+        for (size_t i = 0; i < heart.size(); i++) {
+
+            if (ColisaoPontoEsfera(player.position, heart[i].hitbox, heart[i].radius) && heart[i].collected == false) {
+                heart[i].collected = true;
+                player.lifes++;
+                num_lifes = player.lifes;
+            }
+        }
+
         if (ColisaoPontoEsfera(player.position, hitbox_bunny, bunny_radius))
             bunny_alive = false;
 
@@ -763,7 +931,7 @@ int main(int argc, char* argv[])
             cout << "Colidiu";
         }
 
-        if (ColisaoEsferaEsfera(hitbox_spaceship, spaceship.radius, hitbox_boss, boss.radius))
+        if (ColisaoEsferaEsfera(hitbox_spaceship, spaceship.radius, boss.hitbox, boss.radius))
         {
              // Imprimimos na tela a mensagem de fim de jogo
             TextRendering_ShowGameOver(window);
@@ -787,7 +955,7 @@ int main(int argc, char* argv[])
             {
 
                 // Checa se o jogador se aproximou o suficiente do monstro para que este o note
-                if (length(player.position - monster[i].position) < 15.0f)
+                if (length(player.position - monster[i].position) < 30.0f)
                     monster[i].proximo = true;
                 else
                     monster[i].proximo = false;
@@ -820,16 +988,16 @@ int main(int argc, char* argv[])
 
         /////////////////// MOVIMENTAÇÃO BOSS ////////////////////////////////////
 
-        if (num_pieces == 5)
+        if (num_pieces == 5 && boss.lifes > 0)
         {
             boss.is_alive = true;
-            glm::vec3 direction = boss.position - spaceship.position;
+            glm::vec4 direction = (boss.position - spaceship.position) / norm(boss.position - spaceship.position);
             boss.angle = -atan2(direction.z, direction.x);
 
-            boss.position.x -= direction.x * delta_t;
-            boss.position.z -= direction.z * delta_t;
+            boss.position.x -= 5 * direction.x * delta_t;
+            boss.position.z -= 5 * direction.z * delta_t;
 
-            hitbox_boss = boss.position;
+            boss.hitbox = boss.position;
         }
 
         //////////////////////////////////////////////////////////////////////////
@@ -889,7 +1057,7 @@ int main(int argc, char* argv[])
             // Propriedades do tiro
             new_shot.is_active = true;
             new_shot.position = glm::vec4(player.position.x, player.position.y, player.position.z, 1.0f);
-            new_shot.speed = glm::vec4(5 * camera_view_vector.x, 5 * camera_view_vector.y, 5 * camera_view_vector.z, 0.0f);
+            new_shot.speed = glm::vec4(10 * camera_view_vector.x, 10 * camera_view_vector.y, 10 * camera_view_vector.z, 0.0f);
             shot.push_back(new_shot);
 
             // Diminui o número de tiros possíveis
@@ -909,8 +1077,8 @@ int main(int argc, char* argv[])
                 // Atualiza posição do tiro
                 shot[i].position += shot[i].speed * delta_t;
 
-                // Se o tiro percorreu mais de 20 unidades de distância ou colidiu com um monstro, ele some
-                if (length(player.position - shot[i].position) > 20.0f)
+                // Se o tiro percorreu mais de 60 unidades de distância ou colidiu com um monstro, ele some
+                if (length(player.position - shot[i].position) > 60.0f)
                     shot[i].is_active = false;
 
                 for (size_t j = 0; j < monster.size(); j++)
@@ -918,7 +1086,7 @@ int main(int argc, char* argv[])
                     if (ColisaoEsferaEsfera(shot[i].position, shot[i].radius, monster[j].hitbox, monster[j].radius))
                     {
                         shot[i].is_active = false;
-                        monster[j].lifes--;
+                        monster[j].lifes -= player.damage;
                         if (monster[j].lifes == 0)
                             monster[j].is_alive = false;
                         if (monster[j].lifes < 0)
@@ -928,9 +1096,14 @@ int main(int argc, char* argv[])
 
                 if (ColisaoEsferaEsfera(shot[i].position, shot[i].radius, boss.position, boss.radius))
                 {
-                    boss.lifes--;
-                    if (boss.lifes < 0)
+                    shot[i].is_active = false;
+                    boss.lifes -= player.damage;
+                    cout << boss.lifes;
+                    if (boss.lifes <= 0)
+                    {
+                        boss.is_alive = false;
                         boss.lifes = 0;
+                    }
                 }
 
                 // Desenha o tiro após feita a atualização
@@ -1058,7 +1231,56 @@ int main(int argc, char* argv[])
 
         //////////////////////////////////////////////////////////////////////////
 
-        /////////////////// Arvore ///////////////////////////////////////////////
+        /////////////////// BATERIA //////////////////////////////////////////////
+
+        for(int i = 0; i < 5; i++){
+            if(battery[i].collected == false){
+                model = Matrix_Translate(battery[i].position.x, battery[i].position.y, battery[i].position.z)
+                      * Matrix_Scale(0.4f, 0.4f, 0.4f)
+                      * Matrix_Rotate_Y(fmod(prev_time, battery[i].angle));
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, BATTERY);
+                DrawVirtualObject("the_battery");
+            }
+
+        }
+
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// UPGRADE DE DANO //////////////////////////////////////
+
+        for(int i = 0; i < 5; i++){
+            if(ammo[i].collected == false){
+                model = Matrix_Translate(ammo[i].position.x, ammo[i].position.y, ammo[i].position.z)
+                      * Matrix_Scale(0.4f, 0.4f, 0.4f)
+                      * Matrix_Rotate_Y(fmod(prev_time, ammo[i].angle));
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, AMMO);
+                DrawVirtualObject("the_ammo");
+            }
+
+        }
+
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// VIDAS EXTRAS /////////////////////////////////////////
+
+        for(int i = 0; i < 5; i++){
+            if(heart[i].collected == false){
+                model = Matrix_Translate(heart[i].position.x, heart[i].position.y, heart[i].position.z)
+                      * Matrix_Scale(0.8f, 0.8f, 0.8f)
+                      * Matrix_Rotate_Y(fmod(prev_time, heart[i].angle));
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, HEART);
+                DrawVirtualObject("the_heart");
+            }
+
+        }
+
+
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// ARVORES ///////////////////////////////////////////////
 
         model = Matrix_Translate(tree_position.x, tree_position.y, tree_position.z)
               * Matrix_Scale(10.0f, 10.0f, 10.0f);
@@ -1068,15 +1290,15 @@ int main(int argc, char* argv[])
 
         //////////////////////////////////////////////////////////////////////////
 
-        /////////////////// Boss /////////////////////////////////////////////////
+        /////////////////// BOSS /////////////////////////////////////////////////
 
-        if(boss.is_alive) {
+        if(boss.is_alive == true) {
             model = Matrix_Translate(boss.position.x, boss.position.y, boss.position.z)
               * Matrix_Scale(10.0f, 10.0f, 10.0f)
               * Matrix_Rotate_Y(boss.angle);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, BOSS);
-        DrawVirtualObject("the_boss");
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, BOSS);
+            DrawVirtualObject("the_boss");
         }
 
         //////////////////////////////////////////////////////////////////////////
@@ -1148,14 +1370,16 @@ int main(int argc, char* argv[])
         glDisable(GL_BLEND);
 
         // Esfera de colisão centrada no boss
-        model = Matrix_Translate(hitbox_boss.x, hitbox_boss.y, hitbox_boss.z)
+        if(boss.is_alive == true){
+            model = Matrix_Translate(boss.hitbox.x, boss.hitbox.y, boss.hitbox.z)
               * Matrix_Scale(11.0f, 11.0f, 11.0f);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, HITBOX);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        DrawVirtualObject("the_sphere");
-        glDisable(GL_BLEND);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, HITBOX);
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            DrawVirtualObject("the_sphere");
+            glDisable(GL_BLEND);
+        }
 
         //////////////////////////////////////////////////////////////////////////
 
@@ -1530,6 +1754,8 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage12"), 12);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage13"), 13);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage14"), 14);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage15"), 15);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage16"), 16);
 
     glUseProgram(0);
 }
