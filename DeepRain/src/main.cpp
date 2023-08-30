@@ -174,6 +174,7 @@ void TextRendering_ShowBullets(GLFWwindow* window);
 void TextRendering_ShowLifes(GLFWwindow* window);
 void TextRendering_ShowPieces(GLFWwindow* window);
 void TextRendering_ShowGameOver(GLFWwindow* window);
+void TextRendering_ShowWin(GLFWwindow* window);
 void TextRendering_ShowTime(GLFWwindow* window);
 void TextRendering_ShowFramesPerSecond(GLFWwindow* window);
 
@@ -216,6 +217,7 @@ class Player {
     public:
         glm::vec4 position;
         float speed = 10.0f;
+        bool is_alive = true;
         int damage = 1;
         int lifes = 3;
 };
@@ -388,14 +390,21 @@ float delta_t = 0.0f;
 float g_Theta = 3.141592f / 4;
 float g_Phi = 3.141592f / 6;
 
-// Vetor view da câmera
+// Vetores da câmera
 glm::vec4 camera_view_vector;
+glm::vec4 camera_up_vector;
+glm::vec4 prev_view;
+glm::vec4 prev_pos;
+glm::vec4 direction;
 
 // Pontos de posição do jogador
 glm::vec4 camera_position_c = glm::vec4(0.0f, 1.0f, 2.0f, 1.0f);
 
 // Variáveis para o monstro com movimentação dada por curva de bezier
 bool ciclo_voo = true;
+
+// Variável para a câmera lookat que foca no boss spawnando
+bool lookat_boss = false;
 
 // Número de texturas carregadas pela função LoadTextureImage()
 GLuint g_NumLoadedTextures = 0;
@@ -571,7 +580,7 @@ int main(int argc, char* argv[])
 
     // Construímos a representação de triangulos
     GLuint vertex_array_object_id_crosshair = BuildTrianglesForCrosshair();
-    GLuint vertex_array_object_id_gameoverscreen = BuildTrianglesForGameOverScreen();
+    // GLuint vertex_array_object_id_gameoverscreen = BuildTrianglesForGameOverScreen();
 
     // Inicializamos o código para renderização de texto.
     TextRendering_Init();
@@ -593,6 +602,16 @@ int main(int argc, char* argv[])
     float prevx_camera_position_c;
     float prevy_camera_position_c;
     float prevz_camera_position_c;
+
+    int frame_counter = 600;
+
+    bool init_counter = false;
+    bool gameOver = false;
+    bool win = false;
+    bool tp_boss = true;
+    bool tp_end = true;
+
+    float r, x, y, z;
 
     float t = 0.0f;     // Parâmetro de interpolação da curva de beziér
 
@@ -828,13 +847,33 @@ int main(int argc, char* argv[])
         // variáveis g_CameraDistance, g_CameraPhi, e g_CameraTheta são
         // controladas pelo mouse do usuário. Veja as funções CursorPosCallback()
         // e ScrollCallback().
-        float r = g_CameraDistance;
-        float y = r*sin(g_CameraPhi);
-        float z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
-        float x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
+        r = g_CameraDistance;
+        y = r*sin(g_CameraPhi);
+        z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
+        x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
 
-        glm::vec4 camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
-        camera_view_vector = glm::vec4(x, y, -z, 0.0f);                // Vetor "view", sentido para onde a câmera está virada
+        camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
+
+        if (win || gameOver)
+        {
+            camera_view_vector = glm::vec4(-500.0f, -100.0f, -500.0f, 1.0f) - player.position;
+        }
+
+        else if (frame_counter == 0 && lookat_boss)
+        {
+            lookat_boss = false;
+            camera_view_vector = prev_view;
+            camera_position_c = prev_pos;
+        }
+
+        else if (lookat_boss == true && frame_counter > 0)
+        {
+            prev_view = glm::vec4(x, y, -z, 0.0f);
+            camera_view_vector = boss.position - player.position;
+        }
+
+        else
+            camera_view_vector = glm::vec4(x, y, -z, 0.0f);            // Vetor "view", sentido para onde a câmera está virada
 
         glm::vec4 w = - camera_view_vector;
         glm::vec4 u = crossproduct(camera_up_vector, w);
@@ -843,22 +882,51 @@ int main(int argc, char* argv[])
 
         /////////////////// MOVIMENTAÇÃO /////////////////////////////////////////
 
+        if ((win || gameOver) && tp_end)
+        {
+            camera_position_c = glm::vec4(-500.0f, -95.0f, -492.0f, 1.0f);
+            tp_end = false;
+        }
+
+        if (lookat_boss && tp_boss)
+        {
+            prev_pos = camera_position_c;
+            camera_position_c = glm::vec4( 90.0f, 11.0f, -70.0f, 1.0f);
+            tp_boss = false;
+        }
+
         prevx_camera_position_c = camera_position_c.x;
         prevy_camera_position_c = camera_position_c.y;
         prevz_camera_position_c = camera_position_c.z;
 
         // Realiza movimentação do jogador
-        if (tecla_W_pressionada)
-            camera_position_c += -w * player.speed * delta_t;
+        if (!lookat_boss && !(win || gameOver))
+        {
 
-        if (tecla_A_pressionada)
-            camera_position_c += -u * player.speed * delta_t;
+            if (tecla_W_pressionada)
+                camera_position_c += -w * player.speed * delta_t;
 
-        if (tecla_S_pressionada)
-            camera_position_c += w * player.speed * delta_t;
+            if (tecla_A_pressionada)
+                camera_position_c += -u * player.speed * delta_t;
 
-        if (tecla_D_pressionada)
-            camera_position_c += u * player.speed * delta_t;
+            if (tecla_S_pressionada)
+                camera_position_c += w * player.speed * delta_t;
+
+            if (tecla_D_pressionada)
+                camera_position_c += u * player.speed * delta_t;
+        }
+
+        if (!tp_end)
+        {
+            // afasta a imagem lentamente do astronauta falecido
+            camera_position_c -= camera_view_vector * (0.01f * player.speed) * delta_t;
+        }
+
+        if (lookat_boss && !tp_boss)
+        {
+            // afasta lentamente a câmera do boss
+            camera_position_c -= camera_view_vector * (0.01f * player.speed) * delta_t;
+        }
 
         player.position = camera_position_c;
 
@@ -869,7 +937,6 @@ int main(int argc, char* argv[])
         // Checa colisões após o jogador ter se movimentado
         if (ColisaoPontoPlano(player.position, glm::vec4(0.0f, 1.0f, 0.0f, 0.0f)))
         {
-            // cout << "Colisao";
             player.position.y = prevy_camera_position_c;
         }
 
@@ -879,8 +946,10 @@ int main(int argc, char* argv[])
             {
                 // Se o jogador for atingido pelo monstro, perde uma vida
                 player.lifes--;
-                if (player.lifes < 0)
-                    player.lifes = 0;
+                if (player.lifes <= 0){
+                    player.is_alive = false;
+                    gameOver = true;
+                }
                 num_lifes = player.lifes;
 
                 // Reposiciona o jogador caso ele tome dano
@@ -926,22 +995,11 @@ int main(int argc, char* argv[])
         if (ColisaoPontoEsfera(player.position, hitbox_bunny, bunny_radius))
             bunny_alive = false;
 
-        if (ColisaoPontoEsfera(player.position, hitbox_spaceship, spaceship.radius) && !boss.is_alive)
-        {
-            cout << "Colidiu";
-        }
+        if (ColisaoPontoEsfera(player.position, hitbox_spaceship, spaceship.radius) && !boss.is_alive && num_pieces == 1)
+            win = true;
 
         if (ColisaoEsferaEsfera(hitbox_spaceship, spaceship.radius, boss.hitbox, boss.radius))
-        {
-             // Imprimimos na tela a mensagem de fim de jogo
-            TextRendering_ShowGameOver(window);
-
-            // desenha a tela de game over
-            glDisable(GL_DEPTH_TEST);
-            glBindVertexArray(vertex_array_object_id_gameoverscreen);
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, 0);
-            glEnable(GL_DEPTH_TEST);
-        }
+            gameOver = true;
 
         camera_position_c = player.position;
 
@@ -949,37 +1007,40 @@ int main(int argc, char* argv[])
 
         /////////////////// MOVIMENTAÇÃO MONSTROS ////////////////////////////////
 
-        for (size_t i = 0; i < monster.size(); ++i) {
+        if (lookat_boss == false)
+        {
+           for (size_t i = 0; i < monster.size(); ++i) {
 
-            if (monster[i].is_alive)
-            {
-
-                // Checa se o jogador se aproximou o suficiente do monstro para que este o note
-                if (length(player.position - monster[i].position) < 30.0f)
-                    monster[i].proximo = true;
-                else
-                    monster[i].proximo = false;
-
-                // Se o jogador se aproximar do monstro, este o persegue
-                if (monster[i].proximo)
+                if (monster[i].is_alive)
                 {
-                    // Atualiza a rotação do monstro pra sempre estar olhando pro jogador
-                    monster[i].angle = -atan2(monster[i].position.z - player.position.z, monster[i].position.x - player.position.x);
 
-                    if (player.position.x - 1.0f < monster[i].position.x)
-                        monster[i].position.x -= monster[i].speed * delta_t;
+                    // Checa se o jogador se aproximou o suficiente do monstro para que este o note
+                    if (length(player.position - monster[i].position) < 30.0f)
+                        monster[i].proximo = true;
+                    else
+                        monster[i].proximo = false;
 
-                    if (player.position.x + 1.0f> monster[i].position.x)
-                        monster[i].position.x += monster[i].speed  * delta_t;
+                    // Se o jogador se aproximar do monstro, este o persegue
+                    if (monster[i].proximo)
+                    {
+                        // Atualiza a rotação do monstro pra sempre estar olhando pro jogador
+                        monster[i].angle = -atan2(monster[i].position.z - player.position.z, monster[i].position.x - player.position.x);
 
-                    if (player.position.z - 1.0f < monster[i].position.z)
-                        monster[i].position.z -= monster[i].speed  * delta_t;
+                        if (player.position.x - 1.0f < monster[i].position.x)
+                            monster[i].position.x -= monster[i].speed * delta_t;
 
-                    if (player.position.z + 1.0f > monster[i].position.z)
-                        monster[i].position.z += monster[i].speed  * delta_t;
+                        if (player.position.x + 1.0f> monster[i].position.x)
+                            monster[i].position.x += monster[i].speed  * delta_t;
 
-                    monster[i].hitbox = monster[i].position;
+                        if (player.position.z - 1.0f < monster[i].position.z)
+                            monster[i].position.z -= monster[i].speed  * delta_t;
 
+                        if (player.position.z + 1.0f > monster[i].position.z)
+                            monster[i].position.z += monster[i].speed  * delta_t;
+
+                        monster[i].hitbox = monster[i].position;
+
+                    }
                 }
             }
         }
@@ -988,16 +1049,24 @@ int main(int argc, char* argv[])
 
         /////////////////// MOVIMENTAÇÃO BOSS ////////////////////////////////////
 
-        if (num_pieces == 5 && boss.lifes > 0)
+        if (num_pieces == 1 && boss.lifes > 0 && frame_counter > 0)
         {
             boss.is_alive = true;
-            glm::vec4 direction = (boss.position - spaceship.position) / norm(boss.position - spaceship.position);
+            direction = (boss.position - spaceship.position) / norm(boss.position - spaceship.position);
             boss.angle = -atan2(direction.z, direction.x);
+            lookat_boss = true;
+            init_counter = true;
+        }
 
-            boss.position.x -= 5 * direction.x * delta_t;
-            boss.position.z -= 5 * direction.z * delta_t;
+        if (lookat_boss == false)
+        {
+           if (num_pieces == 1 && boss.lifes > 0)
+           {
+                boss.position.x -= 5 * direction.x * delta_t;
+                boss.position.z -= 5 * direction.z * delta_t;
 
-            boss.hitbox = boss.position;
+                boss.hitbox = boss.position;
+           }
         }
 
         //////////////////////////////////////////////////////////////////////////
@@ -1033,14 +1102,17 @@ int main(int argc, char* argv[])
 
         /////////////////// SKYBOX ///////////////////////////////////////////////
 
-        model = Matrix_Translate(player.position.x, player.position.y, player.position.z);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, SKYBOX);
-        glDisable(GL_CULL_FACE);
-        glDisable(GL_DEPTH_TEST);
-        DrawVirtualObject("the_sphere");
-        glEnable(GL_CULL_FACE);
-        glEnable(GL_DEPTH_TEST);
+        if (!win && !gameOver)
+        {
+            model = Matrix_Translate(player.position.x, player.position.y, player.position.z);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, SKYBOX);
+            glDisable(GL_CULL_FACE);
+            glDisable(GL_DEPTH_TEST);
+            DrawVirtualObject("the_sphere");
+            glEnable(GL_CULL_FACE);
+            glEnable(GL_DEPTH_TEST);
+        }
 
         //////////////////////////////////////////////////////////////////////////
 
@@ -1120,14 +1192,28 @@ int main(int argc, char* argv[])
 
         /////////////////// COELHO ///////////////////////////////////////////////
 
-        model = Matrix_Translate(bunny_position.x, bunny_position.y, bunny_position.z)
-              * Matrix_Rotate_Z(g_AngleZ)
-              * Matrix_Rotate_Y(g_AngleY)
-              * Matrix_Rotate_X(g_AngleX);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, BUNNY);
-        if (bunny_alive)
-            DrawVirtualObject("the_bunny");
+        for (int i=0; i < 2; i++)
+        {
+            if ( i==0 )
+            {
+                model = Matrix_Translate(bunny_position.x, bunny_position.y, bunny_position.z)
+                      * Matrix_Rotate_Z(g_AngleZ)
+                      * Matrix_Rotate_Y(g_AngleY)
+                      * Matrix_Rotate_X(g_AngleX);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, BUNNY);
+                if (bunny_alive)
+                    DrawVirtualObject("the_bunny");
+            }
+            else
+            {
+                model = Matrix_Translate(-500.0f, -100.0f, -500.0f);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, BUNNY);
+                DrawVirtualObject("the_bunny");
+
+            }
+        }
 
         //////////////////////////////////////////////////////////////////////////
 
@@ -1383,7 +1469,7 @@ int main(int argc, char* argv[])
 
         //////////////////////////////////////////////////////////////////////////
 
-        if (player.lifes > 0)
+        if (player.is_alive == true && !gameOver && !win)
         {
             // Imprimimos na tela a quantidade de tiros que o jogador possui
             TextRendering_ShowBullets(window);
@@ -1409,17 +1495,16 @@ int main(int argc, char* argv[])
 
         }
 
-        else
+        if(gameOver)
         {
             // Imprimimos na tela a mensagem de fim de jogo
             TextRendering_ShowGameOver(window);
+        }
 
-            // desenha a tela de game over
-            glDisable(GL_DEPTH_TEST);
-            glBindVertexArray(vertex_array_object_id_gameoverscreen);
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, 0);
-            glEnable(GL_DEPTH_TEST);
-
+        if(win)
+        {
+            // Imprimimos na tela a mensagem de fim de jogo
+            TextRendering_ShowWin(window);
         }
 
         // Desligamos o VAO
@@ -1429,6 +1514,11 @@ int main(int argc, char* argv[])
         float current_time = (float)glfwGetTime();
         delta_t = current_time - prev_time;
         prev_time = current_time;
+
+        if (init_counter)
+            frame_counter--;
+        if (frame_counter <= 0)
+            init_counter = false;
 
         // O framebuffer onde OpenGL executa as operações de renderização não
         // é o mesmo que está sendo mostrado para o usuário, caso contrário
@@ -2220,41 +2310,44 @@ void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 // cima da janela OpenGL.
 void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
 {
-    // Câmera se move junto com o mouse do usuário
-    float dx = xpos - g_LastCursorPosX;
-    float dy = ypos - g_LastCursorPosY;
-
-    // Atualizamos parâmetros da câmera com os deslocamentos
-    g_CameraTheta += 0.01f*dx;
-    g_CameraPhi   -= 0.01f*dy;
-
-    // Em coordenadas esféricas, o ângulo phi deve ficar entre -pi/2 e +pi/2.
-    float phimax = 3.141592f/2;
-    float phimin = -phimax;
-
-    if (g_CameraPhi > phimax)
-        g_CameraPhi = phimax;
-    if (g_CameraPhi < phimin)
-        g_CameraPhi = phimin;
-
-    // Atualizamos as variáveis globais para armazenar a posição atual do
-    // cursor como sendo a última posição conhecida do cursor.
-    g_LastCursorPosX = xpos;
-    g_LastCursorPosY = ypos;
-
-    if (g_LeftMouseButtonPressed)
+    if (!lookat_boss)
     {
-        // atira
-    }
+        // Câmera se move junto com o mouse do usuário
+        float dx = xpos - g_LastCursorPosX;
+        float dy = ypos - g_LastCursorPosY;
 
-    if (g_RightMouseButtonPressed)
-    {
-        // mira?
-    }
+        // Atualizamos parâmetros da câmera com os deslocamentos
+        g_CameraTheta += 0.01f*dx;
+        g_CameraPhi   -= 0.01f*dy;
 
-    if (g_MiddleMouseButtonPressed)
-    {
-        // zoom
+        // Em coordenadas esféricas, o ângulo phi deve ficar entre -pi/2 e +pi/2.
+        float phimax = 3.141592f/2;
+        float phimin = -phimax;
+
+        if (g_CameraPhi > phimax)
+            g_CameraPhi = phimax;
+        if (g_CameraPhi < phimin)
+            g_CameraPhi = phimin;
+
+        // Atualizamos as variáveis globais para armazenar a posição atual do
+        // cursor como sendo a última posição conhecida do cursor.
+        g_LastCursorPosX = xpos;
+        g_LastCursorPosY = ypos;
+
+        if (g_LeftMouseButtonPressed)
+        {
+            // atira
+        }
+
+        if (g_RightMouseButtonPressed)
+        {
+            // mira?
+        }
+
+        if (g_MiddleMouseButtonPressed)
+        {
+            // zoom
+        }
     }
 }
 
@@ -2348,7 +2441,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     if (key == GLFW_KEY_R && action == GLFW_PRESS)
     {
         LoadShadersFromFiles();
-        fprintf(stdout,"Shaders recarregados!\n");
+        // fprintf(stdout,"Shaders recarregados!\n");
         fflush(stdout);
         reload = true;
     }
@@ -2550,7 +2643,21 @@ void TextRendering_ShowGameOver(GLFWwindow* window)
     char buffer[80];
     snprintf(buffer, 80, "GAME OVER\n");
 
-    TextRendering_PrintString(window, buffer, -0.3f+pad, pad, 3.0f);
+    TextRendering_PrintString(window, buffer, -0.32f+pad, 0.2f+pad, 3.0f);
+}
+
+// Escrevemos na tela a mensagem de win
+void TextRendering_ShowWin(GLFWwindow* window)
+{
+    if ( !g_ShowInfoText )
+        return;
+
+    float pad = TextRendering_LineHeight(window);
+
+    char buffer[80];
+    snprintf(buffer, 80, "YOU'VE WON!!\n");
+
+    TextRendering_PrintString(window, buffer, -0.35f+pad, pad, 3.0f);
 }
 
 // Escrevemos na tela o tempo restante até que o oxigênio acabe
