@@ -1,0 +1,22 @@
+# Blender 3.6.2 MTL File: 'None'
+# www.blender.org
+
+newmtl mat_0-gun_diff.jpg
+Ns 9.849158
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd C:/Users/vitor/OneDrive/Área de Trabalho/objs/gun_diff.jpg
+
+newmtl mat_1-default-grey.jpg
+Ns 9.849158
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd C:/Users/vitor/OneDrive/Área de Trabalho/objs/default-grey.jpg

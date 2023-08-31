@@ -68,6 +68,8 @@
 #define BATTERY 14
 #define AMMO 15
 #define HEART 16
+#define GUN 17
+#define CAPSULE 18
 
 // Prints para debugging
 #include "iostream"
@@ -177,6 +179,12 @@ void TextRendering_ShowGameOver(GLFWwindow* window);
 void TextRendering_ShowWin(GLFWwindow* window);
 void TextRendering_ShowTime(GLFWwindow* window);
 void TextRendering_ShowFramesPerSecond(GLFWwindow* window);
+void TextRendering_ShowPoints(GLFWwindow* window, int points);
+void TextRendering_ShowBuyUpgrade(GLFWwindow* window, int points);
+void TextRendering_ShowMessageExtraLife(GLFWwindow* window);
+void TextRendering_ShowMessageIncDamage(GLFWwindow* window);
+void TextRendering_ShowMessageIncSpeed(GLFWwindow* window);
+void TextRendering_ShowMessageInsufficientPoints(GLFWwindow* window);
 
 // Funções callback para comunicação com o sistema operacional e interação do
 // usuário. Veja mais comentários nas definições das mesmas, abaixo.
@@ -220,6 +228,7 @@ class Player {
         bool is_alive = true;
         int damage = 1;
         int lifes = 3;
+        int points = 0;
 };
 
 std::vector<Player> player;
@@ -296,44 +305,22 @@ std::vector<Piece> piece;
 
 int num_pieces = 0;
 
-// Classe / Vector para os upgrades de velocidade  ////////////
+// Classe / Vector para as capsulas de upgrade  ////////////
 
-class Battery {
+class Capsule {
     public:
         glm::vec4 position;
         glm::vec4 hitbox;
         float angle = 2 * M_PI;
-        float radius = 0.8f;
-        bool collected = false;
+        float radius = 0.3f;
+        int price = 100;
+        bool colide = false;
 };
 
-std::vector<Battery> battery;
+std::vector<Capsule> capsule;
 
-// Classe / Vector para os upgrades de dano  ////////////
 
-class Ammo {
-    public:
-        glm::vec4 position;
-        glm::vec4 hitbox;
-        float angle = 2 * M_PI;
-        float radius = 0.8f;
-        bool collected = false;
-};
 
-std::vector<Ammo> ammo;
-
-// Classe / Vector para as vidas extras  ////////////
-
-class Heart {
-    public:
-        glm::vec4 position;
-        glm::vec4 hitbox;
-        float angle = 2 * M_PI;
-        float radius = 0.8f;
-        bool collected = false;
-};
-
-std::vector<Heart> heart;
 
 // def do vetor de indices
 typedef GLubyte index_type;
@@ -384,6 +371,7 @@ bool tecla_W_pressionada = false;
 bool tecla_A_pressionada = false;
 bool tecla_S_pressionada = false;
 bool tecla_D_pressionada = false;
+bool tecla_E_pressionada = false;
 
 // Variáveis para atualização de posição e câmera
 float delta_t = 0.0f;
@@ -505,6 +493,9 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/tc-boss_body.jpg");                 // TextureImage14
     LoadTextureImage("../../data/tc-battery.jpg");                   // TextureImage15
     LoadTextureImage("../../data/tc-heart.jpg");                     // TextureImage16
+    LoadTextureImage("../../data/tc-gun.jpg");                       // TextureImage17
+    LoadTextureImage("../../data/tc-capsule.png");                       // TextureImage18
+
 
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
@@ -572,6 +563,14 @@ int main(int argc, char* argv[])
     ComputeNormals(&heartmodel);
     BuildTrianglesAndAddToVirtualScene(&heartmodel);
 
+    ObjModel gunmodel("../../data/gun.obj");
+    ComputeNormals(&gunmodel);
+    BuildTrianglesAndAddToVirtualScene(&gunmodel);
+
+    ObjModel capsulemodel("../../data/capsule.obj");
+    ComputeNormals(&capsulemodel);
+    BuildTrianglesAndAddToVirtualScene(&capsulemodel);
+
     if ( argc > 1 )
     {
         ObjModel model(argv[1]);
@@ -603,13 +602,21 @@ int main(int argc, char* argv[])
     float prevy_camera_position_c;
     float prevz_camera_position_c;
 
-    int frame_counter = 600;
+    int frame_counter_boss = 600; // Utilizado para definir por quantos frames a cutscene do boss deve durar
+    int frame_counter_messages = 200; // Utilizado para definir por quantos frames a mensagem de qual upgrade foi adquirido deve ficar na tela
+    int price = 100;
 
-    bool init_counter = false;
+    bool init_counter_boss = false;
+    bool init_counter_messages = false;
     bool gameOver = false;
     bool win = false;
     bool tp_boss = true;
     bool tp_end = true;
+    bool show_message_1 = false; // Extra Life
+    bool show_message_2 = false; // Inc Damage
+    bool show_message_3 = false; // Inc Speed
+    bool show_message_4 = false; // Insufficient Points
+    bool canBuy = true; // Utilizado para definir se uma capsula de upgrades já está disponivel para uma nova compra
 
     float r, x, y, z;
 
@@ -688,86 +695,26 @@ int main(int argc, char* argv[])
 
     ///////////////////////////////////////////////////////////////////////
 
-    // Inicialização dos upgrades de velocidade ///////////////////////////
+    // Inicialização das capsulas de upgrade //////////////////////////////
 
-    std::vector<glm::vec3> posVectorBattery;
+    std::vector<glm::vec3> posVectorCapsule;
 
-    glm::vec3 battery_0_position = glm::vec3(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
-    glm::vec3 battery_1_position = glm::vec3(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f));
-    glm::vec3 battery_2_position = glm::vec3(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
-    glm::vec3 battery_3_position = glm::vec3(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f));
-    glm::vec3 battery_4_position = glm::vec3(fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
+    glm::vec3 capsule_0_position = glm::vec3(-fmod(rand(),100.0f), -0.5f, fmod(rand(),100.0f));
+    glm::vec3 capsule_1_position = glm::vec3(fmod(rand(),100.0f), -0.5f, -fmod(rand(),100.0f));
+    glm::vec3 capsule_2_position = glm::vec3(-fmod(rand(),100.0f), -0.5f, fmod(rand(),100.0f));
 
-    posVectorBattery.push_back(battery_0_position);
-    posVectorBattery.push_back(battery_1_position);
-    posVectorBattery.push_back(battery_2_position);
-    posVectorBattery.push_back(battery_3_position);
-    posVectorBattery.push_back(battery_4_position);
+    posVectorCapsule.push_back(capsule_0_position);
+    posVectorCapsule.push_back(capsule_1_position);
+    posVectorCapsule.push_back(capsule_2_position);
 
 
-    for(const glm::vec3& battery_position : posVectorBattery) {
+    for(const glm::vec3& capsule_position : posVectorCapsule) {
 
-        Battery new_battery;
+        Capsule new_capsule;
 
-        new_battery.position = glm::vec4(battery_position.x, battery_position.y, battery_position.z, 1.0f);
-        new_battery.hitbox = new_battery.position;
-        battery.push_back(new_battery);
-    }
-
-    ///////////////////////////////////////////////////////////////////////
-
-    // Inicialização dos upgrades de dano /////////////////////////////////
-
-     std::vector<glm::vec3> posVectorAmmo;
-
-    glm::vec3 ammo_0_position = glm::vec3(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
-    glm::vec3 ammo_1_position = glm::vec3(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f));
-    glm::vec3 ammo_2_position = glm::vec3(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
-    glm::vec3 ammo_3_position = glm::vec3(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f));
-    glm::vec3 ammo_4_position = glm::vec3(fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
-
-    posVectorAmmo.push_back(ammo_0_position);
-    posVectorAmmo.push_back(ammo_1_position);
-    posVectorAmmo.push_back(ammo_2_position);
-    posVectorAmmo.push_back(ammo_3_position);
-    posVectorAmmo.push_back(ammo_4_position);
-
-
-    for(const glm::vec3& ammo_position : posVectorAmmo)
-    {
-        Ammo new_ammo;
-
-        new_ammo.position = glm::vec4(ammo_position.x, ammo_position.y, ammo_position.z, 1.0f);
-        new_ammo.hitbox = new_ammo.position;
-        ammo.push_back(new_ammo);
-    }
-
-    ///////////////////////////////////////////////////////////////////////
-
-    // Inicialização das vidas extras /////////////////////////////////
-
-     std::vector<glm::vec3> posVectorHeart;
-
-    glm::vec3 heart_0_position = glm::vec3(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
-    glm::vec3 heart_1_position = glm::vec3(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f));
-    glm::vec3 heart_2_position = glm::vec3(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
-    glm::vec3 heart_3_position = glm::vec3(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f));
-    glm::vec3 heart_4_position = glm::vec3(fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
-
-    posVectorHeart.push_back(heart_0_position);
-    posVectorHeart.push_back(heart_1_position);
-    posVectorHeart.push_back(heart_2_position);
-    posVectorHeart.push_back(heart_3_position);
-    posVectorHeart.push_back(heart_4_position);
-
-
-    for(const glm::vec3& heart_position : posVectorHeart)
-    {
-        Heart new_heart;
-
-        new_heart.position = glm::vec4(heart_position.x, heart_position.y, heart_position.z, 1.0f);
-        new_heart.hitbox = new_heart.position;
-        heart.push_back(new_heart);
+        new_capsule.position = glm::vec4(capsule_position.x, capsule_position.y, capsule_position.z, 1.0f);
+        new_capsule.hitbox = new_capsule.position;
+        capsule.push_back(new_capsule);
     }
 
     ///////////////////////////////////////////////////////////////////////
@@ -822,6 +769,10 @@ int main(int argc, char* argv[])
 
     ///////////////////////////////////////////////////////////////////////
 
+    // Inicialização do vetor de movimento da camera para a cutscene
+
+    glm::vec4 movementVec;
+
     // Ficamos em um loop infinito, renderizando, até que o usuário feche a janela
     while (!glfwWindowShouldClose(window))
     {
@@ -859,17 +810,20 @@ int main(int argc, char* argv[])
             camera_view_vector = glm::vec4(-500.0f, -100.0f, -500.0f, 1.0f) - player.position;
         }
 
-        else if (frame_counter == 0 && lookat_boss)
+        else if (frame_counter_boss == 0 && lookat_boss)
         {
             lookat_boss = false;
             camera_view_vector = prev_view;
             camera_position_c = prev_pos;
         }
 
-        else if (lookat_boss == true && frame_counter > 0)
+        else if (lookat_boss == true && frame_counter_boss > 0)
         {
             prev_view = glm::vec4(x, y, -z, 0.0f);
             camera_view_vector = boss.position - player.position;
+            x = camera_view_vector.x;
+            y = camera_view_vector.y;
+            z = camera_view_vector.z;
         }
 
         else
@@ -892,6 +846,7 @@ int main(int argc, char* argv[])
         {
             prev_pos = camera_position_c;
             camera_position_c = glm::vec4( 90.0f, 11.0f, -70.0f, 1.0f);
+            movementVec = camera_position_c - player.position;
             tp_boss = false;
         }
 
@@ -967,30 +922,65 @@ int main(int argc, char* argv[])
             }
         }
 
-        for (size_t i = 0; i < battery.size(); i++) {
+        for (size_t i = 0; i < capsule.size(); ++i) {
 
-            if (ColisaoPontoEsfera(player.position, battery[i].hitbox, battery[i].radius) && battery[i].collected == false) {
-                battery[i].collected = true;
-                player.speed += 1.0f;
+            if (ColisaoPontoEsfera(player.position, capsule[i].hitbox, capsule[i].radius + 3.0f))
+            {
+                capsule[i].colide = true;
+                price = capsule[i].price;
+
+                if(tecla_E_pressionada && player.points >= capsule[i].price && canBuy)
+                {
+                    int randomNumber = fmod(rand(),3.0f);
+
+                    // O player ganhou uma vida extra
+                    if(randomNumber == 0.0f)
+                    {
+                        show_message_1 = true;
+                        player.lifes++;
+                        canBuy = false;
+                        player.points -= capsule[i].price;
+                        init_counter_messages = true;
+                    }
+
+                    // O player ganhou um aumento de dano
+                    else if(randomNumber == 1.0f)
+                    {
+                        show_message_2 = true;
+                        player.damage++;
+                        canBuy = false;
+                        player.points -= capsule[i].price;
+                        init_counter_messages = true;
+                    }
+
+                    // O player ganhou um aumento na velocidade de movimento
+                    else if(randomNumber == 2.0f)
+                    {
+                        show_message_3 = true;
+                        player.speed++;
+                        canBuy = false;
+                        player.points -= capsule[i].price;
+                        init_counter_messages = true;
+                    }
+                    capsule[i].price += 100;
+                }
+
+                // O player não tem pontos o suficiente para adquirir um novo upgrade
+                else if(tecla_E_pressionada && player.points < capsule[i].price && canBuy)
+                {
+                    show_message_4 = true;
+                    init_counter_messages = true;
+                }
+            }
+
+            // Player deixou de colidir com a capsula
+            else
+            {
+                capsule[i].colide = false;
             }
         }
+        num_lifes = player.lifes;
 
-        for (size_t i = 0; i < ammo.size(); i++) {
-
-            if (ColisaoPontoEsfera(player.position, ammo[i].hitbox, ammo[i].radius) && ammo[i].collected == false) {
-                ammo[i].collected = true;
-                player.damage++;
-            }
-        }
-
-        for (size_t i = 0; i < heart.size(); i++) {
-
-            if (ColisaoPontoEsfera(player.position, heart[i].hitbox, heart[i].radius) && heart[i].collected == false) {
-                heart[i].collected = true;
-                player.lifes++;
-                num_lifes = player.lifes;
-            }
-        }
 
         if (ColisaoPontoEsfera(player.position, hitbox_bunny, bunny_radius))
             bunny_alive = false;
@@ -1049,13 +1039,13 @@ int main(int argc, char* argv[])
 
         /////////////////// MOVIMENTAÇÃO BOSS ////////////////////////////////////
 
-        if (num_pieces == 1 && boss.lifes > 0 && frame_counter > 0)
+        if (num_pieces == 1 && boss.lifes > 0 && frame_counter_boss > 0)
         {
             boss.is_alive = true;
             direction = (boss.position - spaceship.position) / norm(boss.position - spaceship.position);
             boss.angle = -atan2(direction.z, direction.x);
             lookat_boss = true;
-            init_counter = true;
+            init_counter_boss = true;
         }
 
         if (lookat_boss == false)
@@ -1159,10 +1149,16 @@ int main(int argc, char* argv[])
                     {
                         shot[i].is_active = false;
                         monster[j].lifes -= player.damage;
-                        if (monster[j].lifes == 0)
+                        if (monster[j].lifes == 0){
                             monster[j].is_alive = false;
-                        if (monster[j].lifes < 0)
+                            player.points += 50;
+                        }
+                        if (monster[j].lifes < 0 && monster[j].is_alive)
+                        {
+                            monster[j].is_alive = false;
                             monster[j].lifes = 0;
+                            player.points += 50;
+                        }
                     }
                 }
 
@@ -1317,50 +1313,19 @@ int main(int argc, char* argv[])
 
         //////////////////////////////////////////////////////////////////////////
 
-        /////////////////// BATERIA //////////////////////////////////////////////
+        /////////////////// CAPSULAS /////////////////////////////////////////////
 
-        for(int i = 0; i < 5; i++){
-            if(battery[i].collected == false){
-                model = Matrix_Translate(battery[i].position.x, battery[i].position.y, battery[i].position.z)
-                      * Matrix_Scale(0.4f, 0.4f, 0.4f)
-                      * Matrix_Rotate_Y(fmod(prev_time, battery[i].angle));
-                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-                glUniform1i(g_object_id_uniform, BATTERY);
-                DrawVirtualObject("the_battery");
-            }
-
-        }
-
-        //////////////////////////////////////////////////////////////////////////
-
-        /////////////////// UPGRADE DE DANO //////////////////////////////////////
-
-        for(int i = 0; i < 5; i++){
-            if(ammo[i].collected == false){
-                model = Matrix_Translate(ammo[i].position.x, ammo[i].position.y, ammo[i].position.z)
-                      * Matrix_Scale(0.4f, 0.4f, 0.4f)
-                      * Matrix_Rotate_Y(fmod(prev_time, ammo[i].angle));
-                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-                glUniform1i(g_object_id_uniform, AMMO);
-                DrawVirtualObject("the_ammo");
-            }
-
-        }
-
-        //////////////////////////////////////////////////////////////////////////
-
-        /////////////////// VIDAS EXTRAS /////////////////////////////////////////
-
-        for(int i = 0; i < 5; i++){
-            if(heart[i].collected == false){
-                model = Matrix_Translate(heart[i].position.x, heart[i].position.y, heart[i].position.z)
-                      * Matrix_Scale(0.8f, 0.8f, 0.8f)
-                      * Matrix_Rotate_Y(fmod(prev_time, heart[i].angle));
-                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-                glUniform1i(g_object_id_uniform, HEART);
-                DrawVirtualObject("the_heart");
-            }
-
+        for (int i = 0; i < 3; i++){
+            model = Matrix_Translate(capsule[i].position.x, capsule[i].position.y, capsule[i].position.z)
+                  * Matrix_Scale(capsule[i].radius, capsule[i].radius, capsule[i].radius)
+                  * Matrix_Rotate_Y(fmod(prev_time, capsule[i].angle));
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, CAPSULE);
+        DrawVirtualObject("the_capsule");
+        DrawVirtualObject("Cylinder.011_Cylinder.022");
+        DrawVirtualObject("Cylinder.008_Cylinder.021");
+        DrawVirtualObject("Cylinder.005_Cylinder.010");
+        DrawVirtualObject("Cylinder.004_Cylinder.009");
         }
 
 
@@ -1386,6 +1351,22 @@ int main(int argc, char* argv[])
             glUniform1i(g_object_id_uniform, BOSS);
             DrawVirtualObject("the_boss");
         }
+
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// ARMA /////////////////////////////////////////////////
+
+        model = Matrix_Translate(0.06f, -0.115f, -0.2f)
+              * Matrix_Scale(0.1f, 0.1f, 0.1f)
+              * Matrix_Rotate_Y(M_PI);
+        view = Matrix_Identity();
+        glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, GUN);
+        DrawVirtualObject("the_gun");
+        view = Matrix_Camera_View(camera_position_c, camera_view_vector, camera_up_vector);
+        glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
+
 
         //////////////////////////////////////////////////////////////////////////
 
@@ -1467,6 +1448,19 @@ int main(int argc, char* argv[])
             glDisable(GL_BLEND);
         }
 
+        // Esfera de colisão centrada nas capsulas
+        for (size_t i = 0; i < capsule.size(); ++i)
+        {
+            model = Matrix_Translate(capsule[i].hitbox.x, capsule[i].hitbox.y, capsule[i].hitbox.z)
+                  * Matrix_Scale(1.0f, 1.0f, 1.0f);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, HITBOX);
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            DrawVirtualObject("the_sphere");
+            glDisable(GL_BLEND);
+        }
+
         //////////////////////////////////////////////////////////////////////////
 
         if (player.is_alive == true && !gameOver && !win)
@@ -1486,6 +1480,63 @@ int main(int argc, char* argv[])
 
             // Imprimimos na tela a quantidade de tempo restante até que o oxigênio acabe
             TextRendering_ShowTime(window);
+
+            // Imprimimos na tela a quantidade de pontos que o jogador possui
+            TextRendering_ShowPoints(window, player.points);
+
+            // Imprimimos na tela a mensagem de que o player pode comprar um upgrade
+            if(capsule[0].colide || capsule[1].colide || capsule[2].colide)
+            {
+                TextRendering_ShowBuyUpgrade(window, price);
+            }
+
+            // Imprimimos na tela a mensagem de que uma vida extra foi adquirida
+            if(show_message_1)
+            {
+                TextRendering_ShowMessageExtraLife(window);
+                if(frame_counter_messages <= 0)
+                {
+                    show_message_1 = false;
+                    canBuy = true;
+                    frame_counter_messages = 200;
+                }
+            }
+
+            // Imprimimos na tela a mensagem de que o dano foi aumentado
+            if(show_message_2)
+            {
+                TextRendering_ShowMessageIncDamage(window);
+                if(frame_counter_messages <= 0)
+                {
+                    show_message_2 = false;
+                    canBuy = true;
+                    frame_counter_messages = 200;
+                }
+            }
+
+            // Imprimimos na tela a mensagem de que a velocidade de movimento foi aumentada
+            if(show_message_3)
+            {
+                TextRendering_ShowMessageIncSpeed(window);
+                if(frame_counter_messages <= 0)
+                {
+                    show_message_3 = false;
+                    canBuy = true;
+                    frame_counter_messages = 200;
+                }
+            }
+
+            // Imprimimos na tela a mensagem de que o player não possui pontos o suficiente para adquirir um upgrade
+            if(show_message_4)
+            {
+                TextRendering_ShowMessageInsufficientPoints(window);
+                if(frame_counter_messages <= 0)
+                {
+                    show_message_4 = false;
+                    canBuy = true;
+                    frame_counter_messages = 200;
+                }
+            }
 
             // desenha a crossair na frente da tela
             glDisable(GL_DEPTH_TEST);
@@ -1515,10 +1566,18 @@ int main(int argc, char* argv[])
         delta_t = current_time - prev_time;
         prev_time = current_time;
 
-        if (init_counter)
-            frame_counter--;
-        if (frame_counter <= 0)
-            init_counter = false;
+        if (init_counter_boss)
+            frame_counter_boss--;
+        if (frame_counter_boss <= 0)
+            init_counter_boss = false;
+        if (init_counter_messages)
+            frame_counter_messages--;
+        if (frame_counter_messages <= 0)
+        {
+            init_counter_messages = false;
+        }
+
+
 
         // O framebuffer onde OpenGL executa as operações de renderização não
         // é o mesmo que está sendo mostrado para o usuário, caso contrário
@@ -1846,6 +1905,8 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage14"), 14);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage15"), 15);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage16"), 16);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage17"), 17);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage18"), 18);
 
     glUseProgram(0);
 }
@@ -2520,6 +2581,17 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
             ;
     }
 
+    if (key == GLFW_KEY_E)
+    {
+        if (action == GLFW_PRESS)
+            // Usuário apertou a tecla D, então atualizamos o estado para pressionada
+            tecla_E_pressionada = true;
+
+        else if (action == GLFW_RELEASE)
+            // Usuário largou a tecla D, então atualizamos o estado para NÃO pressionada
+            tecla_E_pressionada = false;
+    }
+
 }
 
 // Definimos o callback para impressão de erros da GLFW no terminal
@@ -2680,8 +2752,88 @@ void TextRendering_ShowTime(GLFWwindow* window)
     }
 
 
-    TextRendering_PrintString(window, buffer, -0.1f+pad/3 , 0.9+pad/2, 1.5f);
+    TextRendering_PrintString(window, buffer, -0.1f+pad/3 , 0.9+pad/2, 2.0f);
 }
+
+void TextRendering_ShowPoints(GLFWwindow* window, int points)
+{
+    if ( !g_ShowInfoText )
+        return;
+
+    float pad = TextRendering_LineHeight(window);
+
+    char buffer[80];
+    snprintf(buffer, 80, "Points: %d", points);
+
+    TextRendering_PrintString(window, buffer, 0.6f+pad/2 , -1.0+pad/2 , 1.5f);
+}
+
+void TextRendering_ShowBuyUpgrade(GLFWwindow* window, int points)
+{
+    if ( !g_ShowInfoText )
+        return;
+
+    float pad = TextRendering_LineHeight(window);
+
+    char buffer[80];
+    snprintf(buffer, 80, "Press [E] to get a random upgrade. (%d)", points);
+
+    TextRendering_PrintString(window, buffer, -0.5f+pad , -0.7+pad/2 , 1.0f);
+}
+
+void TextRendering_ShowMessageExtraLife(GLFWwindow* window)
+{
+    if ( !g_ShowInfoText )
+        return;
+
+    float pad = TextRendering_LineHeight(window);
+
+    char buffer[80];
+    snprintf(buffer, 80, "Extra Life");
+
+    TextRendering_PrintString(window, buffer, -0.3f+pad, 0.2+pad, 2.0f);
+}
+
+void TextRendering_ShowMessageIncDamage(GLFWwindow* window)
+{
+    if ( !g_ShowInfoText )
+        return;
+
+    float pad = TextRendering_LineHeight(window);
+
+    char buffer[80];
+    snprintf(buffer, 80, "Damage Increased");
+
+    TextRendering_PrintString(window, buffer, -0.35f+pad, 0.2+pad, 2.0f);
+}
+
+void TextRendering_ShowMessageIncSpeed(GLFWwindow* window)
+{
+    if ( !g_ShowInfoText )
+        return;
+
+    float pad = TextRendering_LineHeight(window);
+
+    char buffer[80];
+    snprintf(buffer, 80, "Speed Increased");
+
+    TextRendering_PrintString(window, buffer, -0.35f+pad, 0.2+pad, 2.0f);
+}
+
+void TextRendering_ShowMessageInsufficientPoints(GLFWwindow* window)
+{
+    if ( !g_ShowInfoText )
+        return;
+
+    float pad = TextRendering_LineHeight(window);
+
+    char buffer[80];
+    snprintf(buffer, 80, "Insufficient Points");
+
+    TextRendering_PrintString(window, buffer, -0.4f+pad, 0.2+pad, 2.0f);
+}
+
+
 
 // Escrevemos na tela o número de quadros renderizados por segundo (frames per
 // second).

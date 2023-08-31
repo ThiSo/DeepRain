@@ -36,6 +36,8 @@ uniform mat4 projection;
 #define BATTERY 14
 #define AMMO 15
 #define HEART 16
+#define GUN 17
+#define CAPSULE 18
 
 uniform int object_id;
 
@@ -61,6 +63,9 @@ uniform sampler2D TextureImage13; //BOSS BODY
 uniform sampler2D TextureImage14; //BOSS METAL
 uniform sampler2D TextureImage15; //BATTERY
 uniform sampler2D TextureImage16; //HEART
+uniform sampler2D TextureImage17; //GUN
+uniform sampler2D TextureImage18; //CAPSULE1
+
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec4 color;
@@ -144,7 +149,8 @@ void main()
               object_id == SPACESHIP || object_id == MOUNT ||
               object_id == PIECE || object_id == TREE      ||
               object_id == BOSS || object_id == BATTERY    ||
-              object_id == AMMO || object_id == HEART)
+              object_id == AMMO || object_id == HEART      ||
+              object_id == GUN  || object_id == CAPSULE)
     {
         // Coordenadas de textura da estatua, monstro ou pedra, obtidas dos arquivos OBJ.
         p_U = texcoords.x;
@@ -167,6 +173,7 @@ void main()
     // Obtemos a refletância difusa a partir da leitura da imagem TextureImage0
     vec3 Kd0 = texture(TextureImage0, vec2(p_U, p_V)).rgb;
     vec3 Kd1 = texture(TextureImage1, vec2(p_U, p_V)).rgb;
+    vec3 Kd2 = texture(TextureImage1, vec2(p_U, p_V)).rgb;
 
     if (object_id == MONSTER)
     {
@@ -228,6 +235,14 @@ void main()
     else if (object_id == HEART)
     {
         Kd0 = texture(TextureImage16, vec2(p_U, p_V)).rgb;
+    }
+    else if (object_id == GUN)
+    {
+        Kd0 = texture(TextureImage17, vec2(p_U, p_V)).rgb;
+    }
+    else if (object_id == CAPSULE)
+    {
+        Kd0 = texture(TextureImage18, vec2(p_U, p_V)).rgb;
     }
 
     // Espectro da fonte de iluminação
