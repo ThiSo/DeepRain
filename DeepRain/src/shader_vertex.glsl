@@ -19,6 +19,12 @@ out vec4 position_world;
 out vec4 position_model;
 out vec4 normal;
 out vec2 texcoords;
+out vec4 color_v;
+
+uniform int object_id;
+uniform sampler2D TextureImage12; //TREE
+
+#define TREE 12
 
 void main()
 {
@@ -63,5 +69,30 @@ void main()
 
     // Coordenadas de textura obtidas do arquivo OBJ (se existirem!)
     texcoords = texture_coefficients;
+
+    if (object_id == TREE)
+    {
+        vec4 origin = vec4(0.0, 0.0, 0.0, 1.0);
+        vec4 camera_position = inverse(view) * origin;
+        vec4 p = position_world;
+        vec4 n = normalize(normal);
+        vec4 l = normalize(vec4(0.0, 1.0, 0.5, 0.0));
+        vec4 v = normalize(camera_position - p);
+
+        vec4 r = -l+2*n*(dot(n, l));
+
+        float p_U = texcoords.x;
+        float p_V = texcoords.y;
+
+        vec3 Kd0 = texture(TextureImage12, vec2(p_U, p_V)).rgb;
+
+        vec3 I = vec3(1.0, 1.0, 1.0);
+        vec3 Ia = vec3(0.2, 0.2, 0.2);
+
+        float lambert = max(0, dot(n, l));
+
+        color_v.a = 1;
+        color_v.rgb = Kd0 * (lambert + 0.1);
+    }
 }
 

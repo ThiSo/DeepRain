@@ -70,6 +70,7 @@
 #define HEART 16
 #define GUN 17
 #define CAPSULE 18
+#define ASTRONAUT 19
 
 // Prints para debugging
 #include "iostream"
@@ -494,9 +495,8 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/tc-battery.jpg");                   // TextureImage15
     LoadTextureImage("../../data/tc-heart.jpg");                     // TextureImage16
     LoadTextureImage("../../data/tc-gun.jpg");                       // TextureImage17
-    LoadTextureImage("../../data/tc-capsule.png");                       // TextureImage18
-
-
+    LoadTextureImage("../../data/tc-capsule.png");                   // TextureImage18
+    LoadTextureImage("../../data/tc-astronaut.jpg");                 // TextureImage19
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -571,6 +571,10 @@ int main(int argc, char* argv[])
     ComputeNormals(&capsulemodel);
     BuildTrianglesAndAddToVirtualScene(&capsulemodel);
 
+    ObjModel astronautmodel("../../data/astronaut.obj");
+    ComputeNormals(&astronautmodel);
+    BuildTrianglesAndAddToVirtualScene(&astronautmodel);
+
     if ( argc > 1 )
     {
         ObjModel model(argv[1]);
@@ -602,15 +606,16 @@ int main(int argc, char* argv[])
     float prevy_camera_position_c;
     float prevz_camera_position_c;
 
-    int frame_counter_boss = 600; // Utilizado para definir por quantos frames a cutscene do boss deve durar
-    float upgrade_massage_time; // Utilizado para definir por quantos frames a mensagem de qual upgrade foi adquirido deve ficar na tela
+    float boss_cutscene_time = (float)glfwGetTime();          // Utilizado para definir por quantos frames a cutscene do boss deve durar
+    float upgrade_massage_time;  // Utilizado para definir por quantos frames a mensagem de qual upgrade foi adquirido deve ficar na tela
     int price = 100;
 
-    bool init_counter_boss = false;
     bool gameOver = false;
     bool win = false;
     bool tp_boss = true;
     bool tp_end = true;
+
+    bool spawn_boss = true;
     bool show_message_1 = false; // Extra Life
     bool show_message_2 = false; // Inc Damage
     bool show_message_3 = false; // Inc Speed
@@ -670,11 +675,11 @@ int main(int argc, char* argv[])
 
     srand(time(0));
 
-    glm::vec3 piece_0_position = glm::vec3(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
-    glm::vec3 piece_1_position = glm::vec3(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f));
-    glm::vec3 piece_2_position = glm::vec3(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
-    glm::vec3 piece_3_position = glm::vec3(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f));
-    glm::vec3 piece_4_position = glm::vec3(fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f));
+    glm::vec3 piece_0_position = glm::vec3(-54.0f, 0.5f, -54.0f);
+    glm::vec3 piece_1_position = glm::vec3(55.0f, 28.0f, 35.0f);
+    glm::vec3 piece_2_position = glm::vec3(-35.0f, 3.0f, 65.0f);
+    glm::vec3 piece_3_position = glm::vec3(94.0f, 0.5f, 94.0f);
+    glm::vec3 piece_4_position = glm::vec3(94.0f, 0.5f, -94.0f);
 
     posVectorPiece.push_back(piece_0_position);
     posVectorPiece.push_back(piece_1_position);
@@ -809,14 +814,14 @@ int main(int argc, char* argv[])
             camera_view_vector = glm::vec4(-500.0f, -100.0f, -500.0f, 1.0f) - player.position;
         }
 
-        else if (frame_counter_boss == 0 && lookat_boss)
+        else if (((float)glfwGetTime() >= boss_cutscene_time + 5.0f) && lookat_boss)
         {
             lookat_boss = false;
             camera_view_vector = prev_view;
             camera_position_c = prev_pos;
         }
 
-        else if (lookat_boss == true && frame_counter_boss > 0)
+        else if (lookat_boss == true && ((float)glfwGetTime() <= boss_cutscene_time + 5.0f))
         {
             prev_view = glm::vec4(x, y, -z, 0.0f);
             camera_view_vector = boss.position - player.position;
@@ -1037,14 +1042,20 @@ int main(int argc, char* argv[])
 
         /////////////////// MOVIMENTAÇÃO BOSS ////////////////////////////////////
 
-        if (num_pieces == 1 && boss.lifes > 0 && frame_counter_boss > 0)
+        if (num_pieces == 1 && boss.lifes > 0 && spawn_boss)
+        {
+            boss_cutscene_time = (float)glfwGetTime();
+            spawn_boss = false;
+        }
+
+        if (num_pieces == 1 && boss.lifes > 0 && ((float)glfwGetTime() <= boss_cutscene_time + 5.0f))
         {
             boss.is_alive = true;
             direction = (boss.position - spaceship.position) / norm(boss.position - spaceship.position);
             boss.angle = -atan2(direction.z, direction.x);
             lookat_boss = true;
-            init_counter_boss = true;
         }
+
 
         if (lookat_boss == false)
         {
@@ -1106,79 +1117,82 @@ int main(int argc, char* argv[])
 
         /////////////////// TIROS ////////////////////////////////////////////////
 
-        if (g_LeftMouseButtonPressed && num_shots > 0)
+        if (!lookat_boss && !win && !gameOver)
         {
-            // Impede que o jogador crie infinitos tiros segurando o botão esquerdo
-            g_LeftMouseButtonPressed = false;
-
-            // Cria um novo objeto de projectile
-            Projectile new_shot;
-
-            // Propriedades do tiro
-            new_shot.is_active = true;
-            new_shot.position = glm::vec4(player.position.x, player.position.y, player.position.z, 1.0f);
-            new_shot.speed = glm::vec4(10 * camera_view_vector.x, 10 * camera_view_vector.y, 10 * camera_view_vector.z, 0.0f);
-            shot.push_back(new_shot);
-
-            // Diminui o número de tiros possíveis
-            num_shots--;
-            if (num_shots < 0)
-                num_shots = 0;
-        }
-
-        if (reload)
-            num_shots = 6;
-
-        for (size_t i = 0; i < shot.size(); ++i) {
-
-            if (shot[i].is_active)
+            if (g_LeftMouseButtonPressed && num_shots > 0)
             {
+                // Impede que o jogador crie infinitos tiros segurando o botão esquerdo
+                g_LeftMouseButtonPressed = false;
 
-                // Atualiza posição do tiro
-                shot[i].position += shot[i].speed * delta_t;
+                // Cria um novo objeto de projectile
+                Projectile new_shot;
 
-                // Se o tiro percorreu mais de 60 unidades de distância ou colidiu com um monstro, ele some
-                if (length(player.position - shot[i].position) > 60.0f)
-                    shot[i].is_active = false;
+                // Propriedades do tiro
+                new_shot.is_active = true;
+                new_shot.position = glm::vec4(player.position.x, player.position.y, player.position.z, 1.0f);
+                new_shot.speed = glm::vec4(10 * camera_view_vector.x, 10 * camera_view_vector.y, 10 * camera_view_vector.z, 0.0f);
+                shot.push_back(new_shot);
 
-                for (size_t j = 0; j < monster.size(); j++)
+                // Diminui o número de tiros possíveis
+                num_shots--;
+                if (num_shots < 0)
+                    num_shots = 0;
+            }
+
+            if (reload)
+                num_shots = 6;
+
+            for (size_t i = 0; i < shot.size(); ++i) {
+
+                if (shot[i].is_active)
                 {
-                    if (ColisaoEsferaEsfera(shot[i].position, shot[i].radius, monster[j].hitbox, monster[j].radius))
+
+                    // Atualiza posição do tiro
+                    shot[i].position += shot[i].speed * delta_t;
+
+                    // Se o tiro percorreu mais de 60 unidades de distância ou colidiu com um monstro, ele some
+                    if (length(player.position - shot[i].position) > 60.0f)
+                        shot[i].is_active = false;
+
+                    for (size_t j = 0; j < monster.size(); j++)
+                    {
+                        if (ColisaoEsferaEsfera(shot[i].position, shot[i].radius, monster[j].hitbox, monster[j].radius))
+                        {
+                            shot[i].is_active = false;
+                            monster[j].lifes -= player.damage;
+                            if (monster[j].lifes == 0){
+                                monster[j].is_alive = false;
+                                player.points += 50;
+                            }
+                            if (monster[j].lifes < 0 && monster[j].is_alive)
+                            {
+                                monster[j].is_alive = false;
+                                monster[j].lifes = 0;
+                                player.points += 50;
+                            }
+                        }
+                    }
+
+                    if (ColisaoEsferaEsfera(shot[i].position, shot[i].radius, boss.position, boss.radius))
                     {
                         shot[i].is_active = false;
-                        monster[j].lifes -= player.damage;
-                        if (monster[j].lifes == 0){
-                            monster[j].is_alive = false;
-                            player.points += 50;
-                        }
-                        if (monster[j].lifes < 0 && monster[j].is_alive)
+                        boss.lifes -= player.damage;
+                        cout << boss.lifes;
+                        if (boss.lifes <= 0)
                         {
-                            monster[j].is_alive = false;
-                            monster[j].lifes = 0;
-                            player.points += 50;
+                            boss.is_alive = false;
+                            boss.lifes = 0;
                         }
                     }
+
+                    // Desenha o tiro após feita a atualização
+                    model = Matrix_Translate(shot[i].position.x, shot[i].position.y, shot[i].position.z)
+                          * Matrix_Scale(0.025f, 0.025f, 0.025f);
+                    glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                    glUniform1i(g_object_id_uniform, BULLETS);
+                    DrawVirtualObject("the_sphere");
+
                 }
-
-                if (ColisaoEsferaEsfera(shot[i].position, shot[i].radius, boss.position, boss.radius))
-                {
-                    shot[i].is_active = false;
-                    boss.lifes -= player.damage;
-                    cout << boss.lifes;
-                    if (boss.lifes <= 0)
-                    {
-                        boss.is_alive = false;
-                        boss.lifes = 0;
-                    }
-                }
-
-                // Desenha o tiro após feita a atualização
-                model = Matrix_Translate(shot[i].position.x, shot[i].position.y, shot[i].position.z)
-                      * Matrix_Scale(0.025f, 0.025f, 0.025f);
-                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-                glUniform1i(g_object_id_uniform, BULLETS);
-                DrawVirtualObject("the_sphere");
-
             }
         }
 
@@ -1186,27 +1200,34 @@ int main(int argc, char* argv[])
 
         /////////////////// COELHO ///////////////////////////////////////////////
 
-        for (int i=0; i < 2; i++)
-        {
-            if ( i==0 )
-            {
-                model = Matrix_Translate(bunny_position.x, bunny_position.y, bunny_position.z)
-                      * Matrix_Rotate_Z(g_AngleZ)
-                      * Matrix_Rotate_Y(g_AngleY)
-                      * Matrix_Rotate_X(g_AngleX);
-                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-                glUniform1i(g_object_id_uniform, BUNNY);
-                if (bunny_alive)
-                    DrawVirtualObject("the_bunny");
-            }
-            else
-            {
-                model = Matrix_Translate(-500.0f, -100.0f, -500.0f);
-                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-                glUniform1i(g_object_id_uniform, BUNNY);
-                DrawVirtualObject("the_bunny");
+        model = Matrix_Translate(bunny_position.x, bunny_position.y, bunny_position.z)
+              * Matrix_Rotate_Z(g_AngleZ)
+              * Matrix_Rotate_Y(g_AngleY)
+              * Matrix_Rotate_X(g_AngleX);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, BUNNY);
+        if (bunny_alive)
+            DrawVirtualObject("the_bunny");
 
-            }
+        //////////////////////////////////////////////////////////////////////////
+
+        /////////////////// ASTRONAUTA ///////////////////////////////////////////
+
+        if (!tp_end)
+        {
+            model = Matrix_Translate(-500.0f, -100.0f, -500.0f)
+                  * Matrix_Rotate_Z(M_PI/2)
+                  * Matrix_Rotate_Y(M_PI);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, ASTRONAUT);
+            DrawVirtualObject("the_astronaut_1");
+            DrawVirtualObject("the_astronaut_2");
+            DrawVirtualObject("the_astronaut_3");
+            DrawVirtualObject("the_astronaut_4");
+            DrawVirtualObject("the_astronaut_5");
+            DrawVirtualObject("the_astronaut_6");
+            DrawVirtualObject("the_astronaut_7");
+            DrawVirtualObject("the_astronaut_8");
         }
 
         //////////////////////////////////////////////////////////////////////////
@@ -1354,17 +1375,19 @@ int main(int argc, char* argv[])
 
         /////////////////// ARMA /////////////////////////////////////////////////
 
-        model = Matrix_Translate(0.06f, -0.115f, -0.2f)
-              * Matrix_Scale(0.1f, 0.1f, 0.1f)
-              * Matrix_Rotate_Y(M_PI);
-        view = Matrix_Identity();
-        glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, GUN);
-        DrawVirtualObject("the_gun");
-        view = Matrix_Camera_View(camera_position_c, camera_view_vector, camera_up_vector);
-        glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
-
+        if (!lookat_boss && !win && !gameOver)
+        {
+            model = Matrix_Translate(0.06f, -0.115f, -0.2f)
+                  * Matrix_Scale(0.1f, 0.1f, 0.1f)
+                  * Matrix_Rotate_Y(M_PI);
+            view = Matrix_Identity();
+            glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, GUN);
+            DrawVirtualObject("the_gun");
+            view = Matrix_Camera_View(camera_position_c, camera_view_vector, camera_up_vector);
+            glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
+        }
 
         //////////////////////////////////////////////////////////////////////////
 
@@ -1559,11 +1582,6 @@ int main(int argc, char* argv[])
         float current_time = (float)glfwGetTime();
         delta_t = current_time - prev_time;
         prev_time = current_time;
-
-        if (init_counter_boss)
-            frame_counter_boss--;
-        if (frame_counter_boss <= 0)
-            init_counter_boss = false;
 
         // O framebuffer onde OpenGL executa as operações de renderização não
         // é o mesmo que está sendo mostrado para o usuário, caso contrário
@@ -1893,6 +1911,7 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage16"), 16);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage17"), 17);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage18"), 18);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage19"), 19);
 
     glUseProgram(0);
 }

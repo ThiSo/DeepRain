@@ -6,6 +6,7 @@
 // "shader_vertex.glsl" e "main.cpp".
 in vec4 position_world;
 in vec4 normal;
+in vec4 color_v;
 
 // Posição do vértice atual no sistema de coordenadas local do modelo.
 in vec4 position_model;
@@ -38,6 +39,8 @@ uniform mat4 projection;
 #define HEART 16
 #define GUN 17
 #define CAPSULE 18
+#define ASTRONAUT 19
+#define GOURARD 20
 
 uniform int object_id;
 
@@ -65,7 +68,7 @@ uniform sampler2D TextureImage15; //BATTERY
 uniform sampler2D TextureImage16; //HEART
 uniform sampler2D TextureImage17; //GUN
 uniform sampler2D TextureImage18; //CAPSULE1
-
+uniform sampler2D TextureImage19; //ASTRONAUT
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec4 color;
@@ -144,13 +147,13 @@ void main()
         p_V = (position_model.y - miny)/(maxy - miny);
 
     }
-    else if ( object_id == LIBERTY || object_id == MONSTER ||
-              object_id == ROCK || object_id == FLYMONSTER ||
-              object_id == SPACESHIP || object_id == MOUNT ||
-              object_id == PIECE || object_id == TREE      ||
-              object_id == BOSS || object_id == BATTERY    ||
-              object_id == AMMO || object_id == HEART      ||
-              object_id == GUN  || object_id == CAPSULE)
+    else if ( object_id == LIBERTY   || object_id == MONSTER    ||
+              object_id == ROCK      || object_id == FLYMONSTER ||
+              object_id == ASTRONAUT || object_id == MOUNT      ||
+              object_id == PIECE     || object_id == BOSS       ||
+              object_id == BATTERY   || object_id == SPACESHIP  ||
+              object_id == AMMO      || object_id == HEART      ||
+              object_id == CAPSULE   || object_id == GUN)
     {
         // Coordenadas de textura da estatua, monstro ou pedra, obtidas dos arquivos OBJ.
         p_U = texcoords.x;
@@ -215,10 +218,10 @@ void main()
     {
         Kd0 = texture(TextureImage11, vec2(p_U, p_V)).rgb;
     }
-    else if (object_id == TREE)
-    {
-        Kd0 = texture(TextureImage12, vec2(p_U, p_V)).rgb;
-    }
+    //else if (object_id == TREE)
+    //{
+    //    Kd0 = texture(TextureImage12, vec2(p_U, p_V)).rgb;
+    //}
     else if (object_id == BOSS)
     {
         Kd0 = texture(TextureImage13, vec2(p_U, p_V)).rgb;
@@ -243,6 +246,10 @@ void main()
     else if (object_id == CAPSULE)
     {
         Kd0 = texture(TextureImage18, vec2(p_U, p_V)).rgb;
+    }
+    else if (object_id == ASTRONAUT)
+    {
+        Kd0 = texture(TextureImage19, vec2(p_U, p_V)).rgb;
     }
 
     // Espectro da fonte de iluminação
@@ -291,6 +298,8 @@ void main()
         color.rgb = Kd0 * (lambert + 0.1) + Kd1 * (invlambert + 0.25) + blinn_phong_specular_term;
     else if (object_id == BOSS)
         color.rgb = (Kd0 + Kd1) * (lambert + 0.1);
+    else if (object_id == TREE)
+        color = color_v;
     else
         color.rgb = Kd0 * (lambert + 0.1);
 
