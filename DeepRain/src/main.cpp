@@ -145,7 +145,6 @@ void PopMatrix(glm::mat4& M);
 // logo após a definição de main() neste arquivo.
 void BuildTrianglesAndAddToVirtualScene(ObjModel*); // Constrói representação de um ObjModel como malha de triângulos para renderização
 GLuint BuildTrianglesForCrosshair(); // Constrói triângulos para renderização
-GLuint BuildTrianglesForGameOverScreen(); // Constrói triângulos para renderização
 void ComputeNormals(ObjModel* model); // Computa normais de um ObjModel, caso não existam.
 void LoadShadersFromFiles(); // Carrega os shaders de vértice e fragmento, criando um programa de GPU
 void LoadTextureImage(const char* filename); // Função que carrega imagens de textura
@@ -564,7 +563,6 @@ int main(int argc, char* argv[])
 
     // Construímos a representação de triangulos
     GLuint vertex_array_object_id_crosshair = BuildTrianglesForCrosshair();
-    // GLuint vertex_array_object_id_gameoverscreen = BuildTrianglesForGameOverScreen();
 
     // Inicializamos o código para renderização de texto.
     TextRendering_Init();
@@ -593,6 +591,9 @@ int main(int argc, char* argv[])
     int monster_spawn_rate = 1;
     int price = 100;
     int points_per_kill = 50;
+
+    float bunny_radius = 2.0f;
+    bool bunny_alive = true;
 
     bool gameOver = false;
     bool win = false;
@@ -663,7 +664,7 @@ int main(int argc, char* argv[])
     glm::vec3 piece_1_position = glm::vec3(55.0f, 28.0f, 35.0f);
     glm::vec3 piece_2_position = glm::vec3(-35.0f, 3.0f, 65.0f);
     glm::vec3 piece_3_position = glm::vec3(94.0f, 0.5f, 94.0f);
-    glm::vec3 piece_4_position = glm::vec3(94.0f, 0.5f, -94.0f);
+    glm::vec3 piece_4_position = glm::vec3(98.0f, 2.5f, -98.0f);
 
     posVectorPiece.push_back(piece_0_position);
     posVectorPiece.push_back(piece_1_position);
@@ -726,16 +727,15 @@ int main(int argc, char* argv[])
 
     // Inicialização dos outros objetos ///////////////////////////////////
 
+    glm::vec4 bunny_position = glm::vec4(55.0f, 28.125f, 30.0f, 1.0f);
     glm::vec3 statue_position = glm::vec3(-60.0f, 10.0f, -60.0f);
     glm::vec3 mount_position = glm::vec3(55.0f, 18.0f, 30.0f);
     glm::vec3 tree_position = glm::vec3(-40.0f, 8.0f, 60.0f);
     glm::vec3 plane_position = glm::vec3(0.0f, -1.0f, 0.0f);
     glm::vec4 plane_normal = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+    glm::vec3 cubo_min = glm::vec3(-100.0f, -100.0f, -100.0f);
+    glm::vec3 cubo_max = glm::vec3(100.0f, 100.0f, 100.0f);
     glm::vec3 fly_position;
-
-    glm::vec4 bunny_position = glm::vec4(55.0f, 28.125f, 30.0f, 1.0f);
-    bool bunny_alive = true;
-    float bunny_radius = 2.0f;
 
     // Pontos de controle da primeira curva de bezier
     glm::vec3 ponto_controle_1 = glm::vec3(40.0f, 10.0f, 70.0f);
@@ -899,6 +899,13 @@ int main(int argc, char* argv[])
         if (ColisaoPontoPlano(player.position, plane_normal) && !player.is_jumping && !player.is_descending)
         {
             player.position.y = prevy_camera_position_c;
+        }
+
+        // Só permite o jogador se mover até a área delimitada pelo cubo que envolve o mapa
+        if (!ColisaoPontoCubo(player.position, cubo_min, cubo_max))
+        {
+            player.position.x = prevx_camera_position_c;
+            player.position.z = prevz_camera_position_c;
         }
 
         for (size_t i = 0; i < monster.size(); ++i) {
@@ -1276,6 +1283,7 @@ int main(int argc, char* argv[])
 
         /////////////////// PEDRAS ///////////////////////////////////////////////
 
+        // definindo os quatro cantos do mapa
         for (int i=0; i<4; i++)
         {
             if (i == 0 || i == 1)
@@ -1294,6 +1302,83 @@ int main(int argc, char* argv[])
             glUniform1i(g_object_id_uniform, ROCK);
             DrawVirtualObject("the_rock");
         }
+
+        model = Matrix_Translate(80.0f, 1.0f, 110.0f)
+              * Matrix_Scale(7.0f, 7.0f, 7.0f)
+              * Matrix_Rotate_Y(M_PI/3);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, ROCK);
+        DrawVirtualObject("the_rock");
+
+        model = Matrix_Translate(110.0f, 0.5f, 90.0f)
+              * Matrix_Scale(12.0f, 12.0f, 9.0f)
+              * Matrix_Rotate_Y(M_PI/2);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, ROCK);
+        DrawVirtualObject("the_rock");
+
+        model = Matrix_Translate(-90.0f, 1.0f, -110.0f)
+              * Matrix_Scale(12.0f, 5.0f, 7.0f);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, ROCK);
+        DrawVirtualObject("the_rock");
+
+        model = Matrix_Translate(-110.0f, 2.0f, -100.0f)
+              * Matrix_Scale(5.0f, 5.0f, 5.0f)
+              * Matrix_Rotate_Y(M_PI/2);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, ROCK);
+        DrawVirtualObject("the_rock");
+
+        model = Matrix_Translate(-90.0f, 1.0f, 110.0f)
+              * Matrix_Scale(12.0f, 5.0f, 7.0f);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, ROCK);
+        DrawVirtualObject("the_rock");
+
+        model = Matrix_Translate(-110.0f, 2.0f, 100.0f)
+              * Matrix_Scale(5.0f, 15.0f, 5.0f)
+              * Matrix_Rotate_Y(M_PI/2);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, ROCK);
+        DrawVirtualObject("the_rock");
+
+        model = Matrix_Translate(75.0f, 0.0f, -90.0f)
+              * Matrix_Scale(12.0f, 12.0f, 12.0f)
+              * Matrix_Rotate_X(M_PI/2);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, ROCK);
+        DrawVirtualObject("the_rock");
+
+        model = Matrix_Translate(100.0f, 1.0f, -75.0f)
+              * Matrix_Scale(6.0f, 6.0f, 6.0f)
+              * Matrix_Rotate_Y(M_PI);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, ROCK);
+        DrawVirtualObject("the_rock");
+
+        model = Matrix_Translate(82.0f, 2.0f, -110.0f)
+              * Matrix_Scale(9.0f, 9.0f, 9.0f)
+              * Matrix_Rotate_Y(M_PI);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, ROCK);
+        DrawVirtualObject("the_rock");
+
+        model = Matrix_Translate(120.0f, 5.0f, -90.0f)
+              * Matrix_Scale(15.0f, 15.0f, 15.0f)
+              * Matrix_Rotate_Z(M_PI/2);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, ROCK);
+        DrawVirtualObject("the_rock");
+
+        model = Matrix_Translate(105.0f, 3.0f, -110.0f)
+              * Matrix_Scale(10.0f, 10.0f, 10.0f)
+              * Matrix_Rotate_Y(M_PI/2)
+              * Matrix_Rotate_X(M_PI)
+              * Matrix_Rotate_Z(M_PI/2);
+        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(g_object_id_uniform, ROCK);
+        DrawVirtualObject("the_rock");
 
         //////////////////////////////////////////////////////////////////////////
 
@@ -1665,9 +1750,7 @@ int main(int argc, char* argv[])
 
             // Imprimimos na tela a mensagem de que o player pode comprar um upgrade
             if(capsule[0].colide || capsule[1].colide || capsule[2].colide)
-            {
                 TextRendering_ShowBuyUpgrade(window, price);
-            }
 
             // Imprimimos na tela a mensagem de que uma vida extra foi adquirida
             if(show_message_1)
@@ -1722,16 +1805,12 @@ int main(int argc, char* argv[])
         }
 
         if(gameOver)
-        {
             // Imprimimos na tela a mensagem de fim de jogo
             TextRendering_ShowGameOver(window);
-        }
 
         if(win)
-        {
             // Imprimimos na tela a mensagem de fim de jogo
             TextRendering_ShowWin(window);
-        }
 
         // Desligamos o VAO
         glBindVertexArray(0);
@@ -1912,80 +1991,6 @@ GLuint BuildTrianglesForCrosshair()
                           3, 2, 1,
                           6, 5, 4,
                           6, 4, 7};
-
-    // Criamos um buffer OpenGL para armazenar os índices acima
-    GLuint indices_id;
-    glGenBuffers(1, &indices_id);
-
-    // "Ligamos" o buffer. Note que o tipo agora é GL_ELEMENT_ARRAY_BUFFER.
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indices_id);
-
-    // Alocamos memória para o buffer.
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), NULL, GL_STATIC_DRAW);
-
-    // Copiamos os valores do array indices[] para dentro do buffer.
-    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(indices), indices);
-
-    glBindVertexArray(0);
-
-    return vertex_array_object_id;
-}
-
-GLuint BuildTrianglesForGameOverScreen()
-{
-
-    GLfloat NDC_coefficients[] = {
-        -1.0f,  -1.0f, 0.0f, 1.0f, // posição do vértice 0
-        -1.0f,   1.0f, 0.0f, 1.0f, // posição do vértice 1
-         1.0f,   1.0f, 0.0f, 1.0f, // posição do vértice 2
-         1.0f,  -1.0f, 0.0f, 1.0f, // posição do vértice 3
-
-    };
-
-    GLuint VBO_NDC_coefficients_id;
-    glGenBuffers(1, &VBO_NDC_coefficients_id);
-
-    GLuint vertex_array_object_id;
-    glGenVertexArrays(1, &vertex_array_object_id);
-
-    glBindVertexArray(vertex_array_object_id);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO_NDC_coefficients_id);
-
-    glBufferData(GL_ARRAY_BUFFER, sizeof(NDC_coefficients), NULL, GL_STATIC_DRAW);
-
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(NDC_coefficients), NDC_coefficients);
-
-    GLuint location = 0; // "(location = 0)" em "shader_vertex.glsl"
-    GLint  number_of_dimensions = 4; // vec4 em "shader_vertex.glsl"
-    glVertexAttribPointer(location, number_of_dimensions, GL_FLOAT, GL_FALSE, 0, 0);
-
-    glEnableVertexAttribArray(location);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    GLfloat color_coefficients[16] = {};
-
-    for (int i=0; i<16; i+=4){
-        color_coefficients[i] = 1.0f;
-        color_coefficients[i+1] = 1.0f;
-        color_coefficients[i+2] = 1.0f;
-        color_coefficients[i+3] = 1.0f;
-    };
-
-    GLuint VBO_color_coefficients_id;
-    glGenBuffers(1, &VBO_color_coefficients_id);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO_color_coefficients_id);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(color_coefficients), NULL, GL_STATIC_DRAW);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(color_coefficients), color_coefficients);
-    location = 1; // "(location = 1)" em "shader_vertex.glsl"
-    number_of_dimensions = 4; // vec4 em "shader_vertex.glsl"
-    glVertexAttribPointer(location, number_of_dimensions, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(location);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    index_type indices[]={3, 1, 0,
-                          3, 2, 1};
 
     // Criamos um buffer OpenGL para armazenar os índices acima
     GLuint indices_id;
@@ -2993,8 +2998,6 @@ void TextRendering_ShowMessageInsufficientPoints(GLFWwindow* window)
 
     TextRendering_PrintString(window, buffer, -0.4f+pad, 0.2+pad, 2.0f);
 }
-
-
 
 // Escrevemos na tela o número de quadros renderizados por segundo (frames per
 // second).

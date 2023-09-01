@@ -38,4 +38,12 @@ bool ColisaoEsferaEsfera(glm::vec4 centro_esfera_1, float raio_1, glm::vec4 cent
     return distancia <= (raio_1 + raio_2);
 }
 
+//Pensada pelos membros da dupla com base nas funções acima
+bool ColisaoPontoCubo(glm::vec4 ponto, glm::vec3 cubo_min, glm::vec3 cubo_max)
+{
+    // Checa se o ponto está dentro do cubo
+    return (ponto.x >= cubo_min.x && ponto.x <= cubo_max.x &&
+            ponto.y >= cubo_min.y && ponto.y <= cubo_max.y &&
+            ponto.z >= cubo_min.z && ponto.z <= cubo_max.z);
+}
 
