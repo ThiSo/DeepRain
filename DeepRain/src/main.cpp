@@ -608,7 +608,10 @@ int main(int argc, char* argv[])
 
     float boss_cutscene_time = (float)glfwGetTime();          // Utilizado para definir por quantos frames a cutscene do boss deve durar
     float upgrade_massage_time;  // Utilizado para definir por quantos frames a mensagem de qual upgrade foi adquirido deve ficar na tela
+    float last_monster_spawn_time = (float)glfwGetTime();
+    int monster_spawn_rate = 1;
     int price = 100;
+    int points_per_kill = 50;
 
     bool gameOver = false;
     bool win = false;
@@ -807,7 +810,7 @@ int main(int argc, char* argv[])
         z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
         x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
 
-        camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
+        camera_up_vector = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
 
         if (win || gameOver)
         {
@@ -849,7 +852,7 @@ int main(int argc, char* argv[])
         if (lookat_boss && tp_boss)
         {
             prev_pos = camera_position_c;
-            camera_position_c = glm::vec4( 90.0f, 11.0f, -70.0f, 1.0f);
+            camera_position_c = glm::vec4(90.0f, 11.0f, -70.0f, 1.0f);
             movementVec = camera_position_c - player.position;
             tp_boss = false;
         }
@@ -963,7 +966,7 @@ int main(int argc, char* argv[])
                         canBuy = false;
                         player.points -= capsule[i].price;
                     }
-                    capsule[i].price += 100;
+                    capsule[i].price += 25;
                     upgrade_massage_time = (float)glfwGetTime();
                 }
 
@@ -1082,7 +1085,7 @@ int main(int argc, char* argv[])
         // Note que, no sistema de coordenadas da câmera, os planos near e far
         // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
         float nearplane = -0.1f;  // Posição do "near plane"
-        float farplane  = -100.0f; // Posição do "far plane"
+        float farplane  = -200.0f; // Posição do "far plane"
 
         // Projeção Perspectiva.
         // Para definição do field of view (FOV), veja slides 205-215 do documento Aula_09_Projecoes.pdf.
@@ -1162,13 +1165,13 @@ int main(int argc, char* argv[])
                             monster[j].lifes -= player.damage;
                             if (monster[j].lifes == 0){
                                 monster[j].is_alive = false;
-                                player.points += 50;
+                                player.points += points_per_kill;
                             }
                             if (monster[j].lifes < 0 && monster[j].is_alive)
                             {
                                 monster[j].is_alive = false;
                                 monster[j].lifes = 0;
-                                player.points += 50;
+                                player.points += points_per_kill;
                             }
                         }
                     }
@@ -1486,6 +1489,162 @@ int main(int argc, char* argv[])
 
         if (player.is_alive == true && !gameOver && !win)
         {
+
+            if((float)glfwGetTime() >= 60.0f)
+            {
+                monster_spawn_rate = 2;
+                points_per_kill = 100;
+            }
+            if((float)glfwGetTime() >= 120.0f)
+            {
+                monster_spawn_rate = 3;
+                points_per_kill = 150;
+            }
+            if((float)glfwGetTime() >= 180.0f)
+            {
+                monster_spawn_rate = 4;
+                points_per_kill = 200;
+            }
+            if((float)glfwGetTime() >= 240.0f)
+            {
+                monster_spawn_rate = 5;
+                points_per_kill = 250;
+            }
+            if((float)glfwGetTime() >= 300.0f)
+            {
+                monster_spawn_rate = 6;
+                points_per_kill = 300;
+            }
+
+            if(monster_spawn_rate == 1)
+            {
+                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f && monster.size() <= 50)
+                {
+                    Monster new_monster;
+
+                    new_monster.position = glm::vec4(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f), 1.0f);
+                    new_monster.hitbox = new_monster.position;
+                    monster.push_back(new_monster);
+                    last_monster_spawn_time = (float)glfwGetTime();
+                }
+            }
+
+            if(monster_spawn_rate == 2)
+            {
+                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f && monster.size() <= 50)
+                {
+                    for(int i = 0; i < 2; i++)
+                    {
+                    Monster new_monster;
+
+                    new_monster.position = glm::vec4(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f), 1.0f);
+                    new_monster.hitbox = new_monster.position;
+                    monster.push_back(new_monster);
+                    }
+                    last_monster_spawn_time = (float)glfwGetTime();
+                }
+            }
+
+            if(monster_spawn_rate == 3)
+            {
+                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f && monster.size() <= 50)
+                {
+                    for(int i = 0; i < 1; i++)
+                    {
+                    Monster new_monster;
+
+                    new_monster.position = glm::vec4(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f), 1.0f);
+                    new_monster.hitbox = new_monster.position;
+                    monster.push_back(new_monster);
+                    }
+
+                    for(int i = 0; i < 2; i++)
+                    {
+                    Monster new_monster;
+
+                    new_monster.position = glm::vec4(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f), 1.0f);
+                    new_monster.hitbox = new_monster.position;
+                    monster.push_back(new_monster);
+                    }
+                    last_monster_spawn_time = (float)glfwGetTime();
+                }
+            }
+
+            if(monster_spawn_rate == 4)
+            {
+                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f && monster.size() <= 50)
+                {
+                    for(int i = 0; i < 2; i++)
+                    {
+                    Monster new_monster;
+
+                    new_monster.position = glm::vec4(fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f), 1.0f);
+                    new_monster.hitbox = new_monster.position;
+                    monster.push_back(new_monster);
+                    }
+
+                    for(int i = 0; i < 2; i++)
+                    {
+                    Monster new_monster;
+
+                    new_monster.position = glm::vec4(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f), 1.0f);
+                    new_monster.hitbox = new_monster.position;
+                    monster.push_back(new_monster);
+                    }
+                    last_monster_spawn_time = (float)glfwGetTime();
+                }
+            }
+
+            if(monster_spawn_rate == 5)
+            {
+                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f && monster.size() <= 50)
+                {
+                    for(int i = 0; i < 2; i++)
+                    {
+                    Monster new_monster;
+
+                    new_monster.position = glm::vec4(fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f), 1.0f);
+                    new_monster.hitbox = new_monster.position;
+                    monster.push_back(new_monster);
+                    }
+
+                    for(int i = 0; i < 3; i++)
+                    {
+                    Monster new_monster;
+
+                    new_monster.position = glm::vec4(-fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f), 1.0f);
+                    new_monster.hitbox = new_monster.position;
+                    monster.push_back(new_monster);
+                    }
+                    last_monster_spawn_time = (float)glfwGetTime();
+                }
+            }
+
+            if(monster_spawn_rate == 6)
+            {
+                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f && monster.size() <= 50)
+                {
+                    for(int i = 0; i < 3; i++)
+                    {
+                    Monster new_monster;
+
+                    new_monster.position = glm::vec4(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f), 1.0f);
+                    new_monster.hitbox = new_monster.position;
+                    monster.push_back(new_monster);
+                    }
+
+                    for(int i = 0; i < 3; i++)
+                    {
+                    Monster new_monster;
+
+                    new_monster.position = glm::vec4(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f), 1.0f);
+                    new_monster.hitbox = new_monster.position;
+                    monster.push_back(new_monster);
+                    }
+                    last_monster_spawn_time = (float)glfwGetTime();
+                }
+            }
+
             // Imprimimos na tela a quantidade de tiros que o jogador possui
             TextRendering_ShowBullets(window);
 
@@ -1515,7 +1674,7 @@ int main(int argc, char* argv[])
             if(show_message_1)
             {
                 TextRendering_ShowMessageExtraLife(window);
-                if((float)glfwGetTime() >= upgrade_massage_time + 2.0f)
+                if((float)glfwGetTime() >= upgrade_massage_time + 1.0f)
                 {
                     show_message_1 = false;
                     canBuy = true;
@@ -1526,7 +1685,7 @@ int main(int argc, char* argv[])
             if(show_message_2)
             {
                 TextRendering_ShowMessageIncDamage(window);
-                if((float)glfwGetTime() >= upgrade_massage_time + 2.0f)
+                if((float)glfwGetTime() >= upgrade_massage_time + 1.0f)
                 {
                     show_message_2 = false;
                     canBuy = true;
@@ -1537,7 +1696,7 @@ int main(int argc, char* argv[])
             if(show_message_3)
             {
                 TextRendering_ShowMessageIncSpeed(window);
-                if((float)glfwGetTime() >= upgrade_massage_time + 2.0f)
+                if((float)glfwGetTime() >= upgrade_massage_time + 1.0f)
                 {
                     show_message_3 = false;
                     canBuy = true;
@@ -1548,7 +1707,7 @@ int main(int argc, char* argv[])
             if(show_message_4)
             {
                 TextRendering_ShowMessageInsufficientPoints(window);
-                if((float)glfwGetTime() >= upgrade_massage_time + 2.0f)
+                if((float)glfwGetTime() >= upgrade_massage_time + 1.0f)
                 {
                     show_message_4 = false;
                     canBuy = true;
