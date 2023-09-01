@@ -34,13 +34,9 @@ uniform mat4 projection;
 #define PIECE 11
 #define TREE 12
 #define BOSS 13
-#define BATTERY 14
-#define AMMO 15
-#define HEART 16
-#define GUN 17
-#define CAPSULE 18
-#define ASTRONAUT 19
-#define GOURARD 20
+#define GUN 14
+#define CAPSULE 15
+#define ASTRONAUT 16
 
 uniform int object_id;
 
@@ -64,11 +60,9 @@ uniform sampler2D TextureImage11; //PIECE
 uniform sampler2D TextureImage12; //TREE
 uniform sampler2D TextureImage13; //BOSS BODY
 uniform sampler2D TextureImage14; //BOSS METAL
-uniform sampler2D TextureImage15; //BATTERY
-uniform sampler2D TextureImage16; //HEART
-uniform sampler2D TextureImage17; //GUN
-uniform sampler2D TextureImage18; //CAPSULE1
-uniform sampler2D TextureImage19; //ASTRONAUT
+uniform sampler2D TextureImage15; //GUN
+uniform sampler2D TextureImage16; //CAPSULE1
+uniform sampler2D TextureImage17; //ASTRONAUT
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec4 color;
@@ -151,9 +145,8 @@ void main()
               object_id == ROCK      || object_id == FLYMONSTER ||
               object_id == ASTRONAUT || object_id == MOUNT      ||
               object_id == PIECE     || object_id == BOSS       ||
-              object_id == BATTERY   || object_id == SPACESHIP  ||
-              object_id == AMMO      || object_id == HEART      ||
-              object_id == CAPSULE   || object_id == GUN)
+              object_id == SPACESHIP || object_id == CAPSULE    ||
+              object_id == GUN)
     {
         // Coordenadas de textura da estatua, monstro ou pedra, obtidas dos arquivos OBJ.
         p_U = texcoords.x;
@@ -227,29 +220,17 @@ void main()
         Kd0 = texture(TextureImage13, vec2(p_U, p_V)).rgb;
         Kd1 = texture(TextureImage14, vec2(p_U, p_V)).rgb;
     }
-    else if (object_id == BATTERY)
+    else if (object_id == GUN)
     {
         Kd0 = texture(TextureImage15, vec2(p_U, p_V)).rgb;
     }
-    else if (object_id == AMMO)
-    {
-        Kd0 = texture(TextureImage10, vec2(p_U, p_V)).rgb;
-    }
-    else if (object_id == HEART)
+    else if (object_id == CAPSULE)
     {
         Kd0 = texture(TextureImage16, vec2(p_U, p_V)).rgb;
     }
-    else if (object_id == GUN)
-    {
-        Kd0 = texture(TextureImage17, vec2(p_U, p_V)).rgb;
-    }
-    else if (object_id == CAPSULE)
-    {
-        Kd0 = texture(TextureImage18, vec2(p_U, p_V)).rgb;
-    }
     else if (object_id == ASTRONAUT)
     {
-        Kd0 = texture(TextureImage19, vec2(p_U, p_V)).rgb;
+        Kd0 = texture(TextureImage17, vec2(p_U, p_V)).rgb;
     }
 
     // Espectro da fonte de iluminação

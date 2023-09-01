@@ -65,12 +65,9 @@
 #define PIECE 11
 #define TREE 12
 #define BOSS 13
-#define BATTERY 14
-#define AMMO 15
-#define HEART 16
-#define GUN 17
-#define CAPSULE 18
-#define ASTRONAUT 19
+#define GUN 14
+#define CAPSULE 15
+#define ASTRONAUT 16
 
 // Prints para debugging
 #include "iostream"
@@ -227,6 +224,8 @@ class Player {
         glm::vec4 position;
         float speed = 10.0f;
         bool is_alive = true;
+        bool is_jumping = false;
+        bool is_descending = false;
         int damage = 1;
         int lifes = 3;
         int points = 0;
@@ -320,9 +319,6 @@ class Capsule {
 
 std::vector<Capsule> capsule;
 
-
-
-
 // def do vetor de indices
 typedef GLubyte index_type;
 
@@ -336,7 +332,6 @@ float g_AngleZ = 0.0f;
 
 // Booleanos para o pulo do jogador
 bool jump = false;
-bool go_down = false;
 
 // "g_LeftMouseButtonPressed = true" se o usuário está com o botão esquerdo do mouse
 // pressionado no momento atual. Veja função MouseButtonCallback().
@@ -492,11 +487,9 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/tc-tree.jpg");                      // TextureImage12
     LoadTextureImage("../../data/tc-boss_metal.jpg");                // TextureImage13
     LoadTextureImage("../../data/tc-boss_body.jpg");                 // TextureImage14
-    LoadTextureImage("../../data/tc-battery.jpg");                   // TextureImage15
-    LoadTextureImage("../../data/tc-heart.jpg");                     // TextureImage16
-    LoadTextureImage("../../data/tc-gun.jpg");                       // TextureImage17
-    LoadTextureImage("../../data/tc-capsule.png");                   // TextureImage18
-    LoadTextureImage("../../data/tc-astronaut.jpg");                 // TextureImage19
+    LoadTextureImage("../../data/tc-gun.jpg");                       // TextureImage15
+    LoadTextureImage("../../data/tc-capsule.png");                   // TextureImage16
+    LoadTextureImage("../../data/tc-astronaut.jpg");                 // TextureImage17
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -550,18 +543,6 @@ int main(int argc, char* argv[])
     ObjModel bossmodel("../../data/boss.obj");
     ComputeNormals(&bossmodel);
     BuildTrianglesAndAddToVirtualScene(&bossmodel);
-
-    ObjModel batterymodel("../../data/battery.obj");
-    ComputeNormals(&batterymodel);
-    BuildTrianglesAndAddToVirtualScene(&batterymodel);
-
-    ObjModel ammomodel("../../data/ammo.obj");
-    ComputeNormals(&ammomodel);
-    BuildTrianglesAndAddToVirtualScene(&ammomodel);
-
-    ObjModel heartmodel("../../data/heart.obj");
-    ComputeNormals(&heartmodel);
-    BuildTrianglesAndAddToVirtualScene(&heartmodel);
 
     ObjModel gunmodel("../../data/gun.obj");
     ComputeNormals(&gunmodel);
@@ -749,6 +730,7 @@ int main(int argc, char* argv[])
     glm::vec3 mount_position = glm::vec3(55.0f, 18.0f, 30.0f);
     glm::vec3 tree_position = glm::vec3(-40.0f, 8.0f, 60.0f);
     glm::vec3 plane_position = glm::vec3(0.0f, -1.0f, 0.0f);
+    glm::vec4 plane_normal = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
     glm::vec3 fly_position;
 
     glm::vec4 bunny_position = glm::vec4(55.0f, 28.125f, 30.0f, 1.0f);
@@ -819,9 +801,10 @@ int main(int argc, char* argv[])
 
         else if (((float)glfwGetTime() >= boss_cutscene_time + 5.0f) && lookat_boss)
         {
-            lookat_boss = false;
-            camera_view_vector = prev_view;
-            camera_position_c = prev_pos;
+          lookat_boss = false;
+          camera_view_vector = prev_view;
+          camera_position_c = prev_pos;
+          camera_position_c.y = 1.0f;
         }
 
         else if (lookat_boss == true && ((float)glfwGetTime() <= boss_cutscene_time + 5.0f))
@@ -858,8 +841,9 @@ int main(int argc, char* argv[])
         }
 
         prevx_camera_position_c = camera_position_c.x;
-        prevy_camera_position_c = camera_position_c.y;
         prevz_camera_position_c = camera_position_c.z;
+        if (!player.is_jumping && !player.is_descending)
+            prevy_camera_position_c = camera_position_c.y;
 
         // Realiza movimentação do jogador
         if (!lookat_boss && !(win || gameOver))
@@ -879,15 +863,30 @@ int main(int argc, char* argv[])
         }
 
         if (!tp_end)
-        {
             // afasta a imagem lentamente do astronauta falecido
             camera_position_c -= camera_view_vector * (0.01f * player.speed) * delta_t;
-        }
 
         if (lookat_boss && !tp_boss)
-        {
             // afasta lentamente a câmera do boss
             camera_position_c -= camera_view_vector * (0.01f * player.speed) * delta_t;
+
+        if (jump && !lookat_boss && !win && !gameOver)
+            player.is_jumping = true;
+
+        if (player.is_jumping)
+        {
+            camera_position_c.y += 0.5f * player.speed * delta_t;
+            if (camera_position_c.y >= 3.0f)
+            {
+                player.is_jumping = false;
+                player.is_descending = true;
+            }
+        }
+        if (player.is_descending)
+        {
+            camera_position_c.y -= 0.5f * player.speed * delta_t;
+            if (camera_position_c.y <= 1.0f)
+                player.is_descending = false;
         }
 
         player.position = camera_position_c;
@@ -897,7 +896,7 @@ int main(int argc, char* argv[])
         /////////////////// COLISÕES /////////////////////////////////////////////
 
         // Checa colisões após o jogador ter se movimentado
-        if (ColisaoPontoPlano(player.position, glm::vec4(0.0f, 1.0f, 0.0f, 0.0f)))
+        if (ColisaoPontoPlano(player.position, plane_normal) && !player.is_jumping && !player.is_descending)
         {
             player.position.y = prevy_camera_position_c;
         }
@@ -1238,7 +1237,7 @@ int main(int argc, char* argv[])
         /////////////////// PLANO ////////////////////////////////////////////////
 
         model = Matrix_Translate(plane_position.x, plane_position.y, plane_position.z)
-              * Matrix_Scale(100.0f, 1.0f, 100.0f);
+              * Matrix_Scale(200.0f, 1.0f, 200.0f);
         glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(g_object_id_uniform, PLANE);
         DrawVirtualObject("the_plane");
@@ -2069,8 +2068,6 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage15"), 15);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage16"), 16);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage17"), 17);
-    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage18"), 18);
-    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage19"), 19);
 
     glUseProgram(0);
 }
