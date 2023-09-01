@@ -603,11 +603,10 @@ int main(int argc, char* argv[])
     float prevz_camera_position_c;
 
     int frame_counter_boss = 600; // Utilizado para definir por quantos frames a cutscene do boss deve durar
-    int frame_counter_messages = 200; // Utilizado para definir por quantos frames a mensagem de qual upgrade foi adquirido deve ficar na tela
+    float upgrade_massage_time; // Utilizado para definir por quantos frames a mensagem de qual upgrade foi adquirido deve ficar na tela
     int price = 100;
 
     bool init_counter_boss = false;
-    bool init_counter_messages = false;
     bool gameOver = false;
     bool win = false;
     bool tp_boss = true;
@@ -940,7 +939,6 @@ int main(int argc, char* argv[])
                         player.lifes++;
                         canBuy = false;
                         player.points -= capsule[i].price;
-                        init_counter_messages = true;
                     }
 
                     // O player ganhou um aumento de dano
@@ -950,7 +948,6 @@ int main(int argc, char* argv[])
                         player.damage++;
                         canBuy = false;
                         player.points -= capsule[i].price;
-                        init_counter_messages = true;
                     }
 
                     // O player ganhou um aumento na velocidade de movimento
@@ -960,16 +957,17 @@ int main(int argc, char* argv[])
                         player.speed++;
                         canBuy = false;
                         player.points -= capsule[i].price;
-                        init_counter_messages = true;
                     }
                     capsule[i].price += 100;
+                    upgrade_massage_time = (float)glfwGetTime();
                 }
 
                 // O player não tem pontos o suficiente para adquirir um novo upgrade
                 else if(tecla_E_pressionada && player.points < capsule[i].price && canBuy)
                 {
                     show_message_4 = true;
-                    init_counter_messages = true;
+                    canBuy = false;
+                    upgrade_massage_time = (float)glfwGetTime();
                 }
             }
 
@@ -1494,11 +1492,10 @@ int main(int argc, char* argv[])
             if(show_message_1)
             {
                 TextRendering_ShowMessageExtraLife(window);
-                if(frame_counter_messages <= 0)
+                if((float)glfwGetTime() >= upgrade_massage_time + 2.0f)
                 {
                     show_message_1 = false;
                     canBuy = true;
-                    frame_counter_messages = 200;
                 }
             }
 
@@ -1506,11 +1503,10 @@ int main(int argc, char* argv[])
             if(show_message_2)
             {
                 TextRendering_ShowMessageIncDamage(window);
-                if(frame_counter_messages <= 0)
+                if((float)glfwGetTime() >= upgrade_massage_time + 2.0f)
                 {
                     show_message_2 = false;
                     canBuy = true;
-                    frame_counter_messages = 200;
                 }
             }
 
@@ -1518,11 +1514,10 @@ int main(int argc, char* argv[])
             if(show_message_3)
             {
                 TextRendering_ShowMessageIncSpeed(window);
-                if(frame_counter_messages <= 0)
+                if((float)glfwGetTime() >= upgrade_massage_time + 2.0f)
                 {
                     show_message_3 = false;
                     canBuy = true;
-                    frame_counter_messages = 200;
                 }
             }
 
@@ -1530,11 +1525,10 @@ int main(int argc, char* argv[])
             if(show_message_4)
             {
                 TextRendering_ShowMessageInsufficientPoints(window);
-                if(frame_counter_messages <= 0)
+                if((float)glfwGetTime() >= upgrade_massage_time + 2.0f)
                 {
                     show_message_4 = false;
                     canBuy = true;
-                    frame_counter_messages = 200;
                 }
             }
 
@@ -1570,14 +1564,6 @@ int main(int argc, char* argv[])
             frame_counter_boss--;
         if (frame_counter_boss <= 0)
             init_counter_boss = false;
-        if (init_counter_messages)
-            frame_counter_messages--;
-        if (frame_counter_messages <= 0)
-        {
-            init_counter_messages = false;
-        }
-
-
 
         // O framebuffer onde OpenGL executa as operações de renderização não
         // é o mesmo que está sendo mostrado para o usuário, caso contrário
