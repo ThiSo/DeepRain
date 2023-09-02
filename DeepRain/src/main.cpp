@@ -181,6 +181,7 @@ void TextRendering_ShowBuyUpgrade(GLFWwindow* window, int points);
 void TextRendering_ShowMessageExtraLife(GLFWwindow* window);
 void TextRendering_ShowMessageIncDamage(GLFWwindow* window);
 void TextRendering_ShowMessageIncSpeed(GLFWwindow* window);
+void TextRendering_ShowMessageClimbing(GLFWwindow* window);
 void TextRendering_ShowMessageInsufficientPoints(GLFWwindow* window);
 
 // Funções callback para comunicação com o sistema operacional e interação do
@@ -224,6 +225,7 @@ class Player {
         float speed = 10.0f;
         bool is_alive = true;
         bool is_jumping = false;
+        bool is_climbing = false;
         bool is_descending = false;
         int damage = 1;
         int lifes = 3;
@@ -608,6 +610,7 @@ int main(int argc, char* argv[])
     bool show_message_2 = false; // Inc Damage
     bool show_message_3 = false; // Inc Speed
     bool show_message_4 = false; // Insufficient Points
+    bool show_message_5 = false; // Mount climbing
     bool canBuy = true; // Utilizado para definir se uma capsula de upgrades já está disponivel para uma nova compra
 
     float r, x, y, z;
@@ -664,7 +667,7 @@ int main(int argc, char* argv[])
     srand(time(0));
 
     glm::vec3 piece_0_position = glm::vec3(-54.0f, 0.5f, -54.0f);
-    glm::vec3 piece_1_position = glm::vec3(55.0f, 28.0f, 35.0f);
+    glm::vec3 piece_1_position = glm::vec3(55.0f, 29.0f, 35.0f);
     glm::vec3 piece_2_position = glm::vec3(-35.0f, 3.0f, 65.0f);
     glm::vec3 piece_3_position = glm::vec3(94.0f, 0.5f, 94.0f);
     glm::vec3 piece_4_position = glm::vec3(98.0f, 2.5f, -98.0f);
@@ -731,13 +734,23 @@ int main(int argc, char* argv[])
     // Inicialização dos outros objetos ///////////////////////////////////
 
     glm::vec4 bunny_position = glm::vec4(55.0f, 28.125f, 30.0f, 1.0f);
+
     glm::vec3 statue_position = glm::vec3(-60.0f, 10.0f, -60.0f);
-    glm::vec3 mount_position = glm::vec3(55.0f, 18.0f, 30.0f);
+
     glm::vec3 tree_position = glm::vec3(-40.0f, 8.0f, 60.0f);
+
+    glm::vec3 mount_position = glm::vec3(55.0f, 18.0f, 30.0f);
+    glm::vec3 mount_max = glm::vec3(75.0f, 10.0f, 45.0f);
+    glm::vec3 mount_min = glm::vec3(40.0f, -40.0f, 15.0f);
+    glm::vec3 mount_top_max = glm::vec3(70.0f, 29.0f, 40.0f);
+    glm::vec3 mount_top_min = glm::vec3(45.0f, 27.0f, 20.0f);
+
     glm::vec3 plane_position = glm::vec3(0.0f, -1.0f, 0.0f);
     glm::vec4 plane_normal = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+
     glm::vec3 cubo_min = glm::vec3(-120.0f, -120.0f, -120.0f);
     glm::vec3 cubo_max = glm::vec3(120.0f, 120.0f, 120.0f);
+
     glm::vec3 fly_position;
 
     // Pontos de controle da primeira curva de bezier
@@ -845,7 +858,7 @@ int main(int argc, char* argv[])
 
         prevx_camera_position_c = camera_position_c.x;
         prevz_camera_position_c = camera_position_c.z;
-        if (!player.is_jumping && !player.is_descending)
+        if (!player.is_jumping && !player.is_climbing)
             prevy_camera_position_c = camera_position_c.y;
 
         // Realiza movimentação do jogador
@@ -881,6 +894,16 @@ int main(int argc, char* argv[])
         if (lookat_boss && !tp_boss)
             // afasta lentamente a câmera do boss
             camera_position_c -= camera_view_vector * (0.01f * player.speed) * delta_t;
+
+        if (player.is_climbing)
+        {
+            camera_position_c.y += 0.5f;
+            if (camera_position_c.y > 35.0f)
+            {
+                player.is_climbing = false;
+                prevy_camera_position_c = 29.0f;
+            }
+        }
 
         if (jump == true && !lookat_boss && !win && !gameOver)
         {
@@ -920,10 +943,9 @@ int main(int argc, char* argv[])
         /////////////////// COLISÕES /////////////////////////////////////////////
 
         // Checa colisões após o jogador ter se movimentado
-        if (ColisaoPontoPlano(player.position, plane_normal) && !player.is_jumping && !player.is_descending)
-        {
+        if ((ColisaoPontoPlano(player.position, plane_normal) && !player.is_jumping && !player.is_descending && !player.is_climbing) ||
+            (ColisaoPontoCubo(player.position, mount_top_min, mount_top_max) && !player.is_jumping && !player.is_climbing))
             player.position.y = prevy_camera_position_c;
-        }
 
         // Só permite o jogador se mover até a área delimitada pelo cubo que envolve o mapa
         if (!ColisaoPontoCubo(player.position, cubo_min, cubo_max))
@@ -931,6 +953,18 @@ int main(int argc, char* argv[])
             player.position.x = prevx_camera_position_c;
             player.position.z = prevz_camera_position_c;
         }
+
+        if (ColisaoPontoCubo(player.position, mount_min, mount_max))
+        {
+            player.position.x = prevx_camera_position_c;
+            player.position.z = prevz_camera_position_c;
+            show_message_5 = true;
+
+            if(tecla_E_pressionada)
+                player.is_climbing = true;
+        }
+        else
+            show_message_5 = false;
 
         for (size_t i = 0; i < monster.size(); ++i) {
 
@@ -1820,6 +1854,9 @@ int main(int argc, char* argv[])
                 }
             }
 
+            if(show_message_5)
+                TextRendering_ShowMessageClimbing(window);
+
             // desenha a crossair na frente da tela
             glDisable(GL_DEPTH_TEST);
             glBindVertexArray(vertex_array_object_id_crosshair);
@@ -2662,8 +2699,8 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     // Se o usuário apertar a tecla espaço o astronauta pula.
     if (key == GLFW_KEY_SPACE)
     {
-        if(camera_position_c.y <= 1.0f)
-            camera_position_c.y = 1.0f;
+        if(camera_position_c.y < 1.0f)
+           camera_position_c.y = 1.0f;
 
         if(action == GLFW_PRESS && lock == false)
         {
@@ -2991,6 +3028,19 @@ void TextRendering_ShowMessageExtraLife(GLFWwindow* window)
     snprintf(buffer, 80, "Extra Life");
 
     TextRendering_PrintString(window, buffer, -0.3f+pad, 0.2+pad, 2.0f);
+}
+
+void TextRendering_ShowMessageClimbing(GLFWwindow* window)
+{
+    if ( !g_ShowInfoText )
+        return;
+
+    float pad = TextRendering_LineHeight(window);
+
+    char buffer[80];
+    snprintf(buffer, 80, "Press [E] to climb");
+
+    TextRendering_PrintString(window, buffer, -0.45f+pad, -0.5+pad, 2.0f);
 }
 
 void TextRendering_ShowMessageIncDamage(GLFWwindow* window)
