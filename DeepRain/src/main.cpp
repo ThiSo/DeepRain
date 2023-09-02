@@ -602,8 +602,10 @@ int main(int argc, char* argv[])
 
     bool gameOver = false;
     bool win = false;
-    bool tp_boss = true;
+    bool lookat_boss_init = false;
     bool tp_end = true;
+    bool going_to_boss = false;
+    bool back_to_prev_pos = false;
 
     bool spawn_boss = true;
     bool show_message_1 = false; // Extra Life
@@ -815,21 +817,21 @@ int main(int argc, char* argv[])
             camera_view_vector = glm::vec4(-500.0f, -100.0f, -500.0f, 1.0f) - player.position;
         }
 
-        else if (((float)glfwGetTime() >= boss_cutscene_time + 5.0f) && lookat_boss)
+        // seta o movimento da camera para se mover em direção ao boss
+
+        else if (lookat_boss == true && ((float)glfwGetTime() <= boss_cutscene_time + 3.0f))
         {
-          lookat_boss = false;
-          camera_view_vector = prev_view;
-          camera_position_c = prev_pos;
-          camera_position_c.y = 1.0f;
+            camera_view_vector = boss.position - player.position;
+            going_to_boss = true;
         }
 
-        else if (lookat_boss == true && ((float)glfwGetTime() <= boss_cutscene_time + 5.0f))
+        // seta o movimento da camera para se mover na direção oposta ao boss
+
+        else if ((float)glfwGetTime() > boss_cutscene_time + 3.0f && (float)glfwGetTime() <= boss_cutscene_time + 6.0f && lookat_boss)
         {
-            prev_view = glm::vec4(x, y, -z, 0.0f);
             camera_view_vector = boss.position - player.position;
-            x = camera_view_vector.x;
-            y = camera_view_vector.y;
-            z = camera_view_vector.z;
+            going_to_boss = false;
+            back_to_prev_pos = true;
         }
 
         else
@@ -848,12 +850,39 @@ int main(int argc, char* argv[])
             tp_end = false;
         }
 
-        if (lookat_boss && tp_boss)
+        if(lookat_boss_init)
         {
             prev_pos = camera_position_c;
-            camera_position_c = glm::vec4(90.0f, 11.0f, -70.0f, 1.0f);
-            movementVec = camera_position_c - player.position;
-            tp_boss = false;
+            lookat_boss_init = false;
+        }
+
+        // Move a camera em direção ao boss durante a cutscene até colidir com ele
+        if (lookat_boss && going_to_boss && !ColisaoPontoEsfera(camera_position_c, boss.position, 25.0f))
+        {
+            movementVec = camera_position_c - boss.position;
+            movementVec = movementVec / norm(movementVec);
+            camera_position_c -= movementVec * (10.0f * player.speed) * delta_t;
+        }
+
+        if (lookat_boss && going_to_boss && ColisaoPontoEsfera(camera_position_c, boss.position, boss.radius))
+        {
+            going_to_boss = false;
+            back_to_prev_pos = true;
+        }
+
+        // Move a camera para longe do boss durante a cutscene até colidir com o ponto em que a camera estava originalmente
+        if (lookat_boss && back_to_prev_pos && !ColisaoPontoEsfera(camera_position_c, prev_pos, 1.0f))
+        {
+            movementVec = boss.position - prev_pos;
+            movementVec = movementVec / norm(movementVec);
+            camera_position_c -= movementVec * (10.0f * player.speed) * delta_t;
+        }
+
+        if (lookat_boss && back_to_prev_pos && ColisaoPontoEsfera(camera_position_c, prev_pos, 1.0f))
+        {
+            back_to_prev_pos = false;
+            lookat_boss = false;
+            camera_position_c = prev_pos;
         }
 
         prevx_camera_position_c = camera_position_c.x;
@@ -891,10 +920,6 @@ int main(int argc, char* argv[])
             // afasta a imagem lentamente do astronauta falecido
             camera_position_c -= camera_view_vector * (0.01f * player.speed) * delta_t;
 
-        if (lookat_boss && !tp_boss)
-            // afasta lentamente a câmera do boss
-            camera_position_c -= camera_view_vector * (0.01f * player.speed) * delta_t;
-
         if (player.is_climbing)
         {
             camera_position_c.y += 0.5f;
@@ -926,12 +951,12 @@ int main(int argc, char* argv[])
             }
         }
 
-        if (player.is_jumping)
+        if (player.is_jumping && !lookat_boss)
         {
             camera_position_c.y += 0.5f * player.speed * delta_t;
         }
 
-        if (player.is_descending)
+        if (player.is_descending && !lookat_boss)
         {
             camera_position_c.y -= 0.5f * player.speed * delta_t;
         }
@@ -1113,6 +1138,7 @@ int main(int argc, char* argv[])
         {
             boss_cutscene_time = (float)glfwGetTime();
             spawn_boss = false;
+            lookat_boss_init = true;
         }
 
         if (num_pieces == 1 && boss.lifes > 0 && ((float)glfwGetTime() <= boss_cutscene_time + 5.0f))
@@ -2820,11 +2846,11 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     if (key == GLFW_KEY_E)
     {
         if (action == GLFW_PRESS)
-            // Usuário apertou a tecla D, então atualizamos o estado para pressionada
+            // Usuário apertou a tecla E, então atualizamos o estado para pressionada
             tecla_E_pressionada = true;
 
         else if (action == GLFW_RELEASE)
-            // Usuário largou a tecla D, então atualizamos o estado para NÃO pressionada
+            // Usuário largou a tecla E, então atualizamos o estado para NÃO pressionada
             tecla_E_pressionada = false;
     }
 
