@@ -389,6 +389,9 @@ bool ciclo_voo = true;
 // Variável para a câmera lookat que foca no boss spawnando
 bool lookat_boss = false;
 
+// Variavel utilizada para evitar que o player consiga pular infinitas vezes enquanto já está no ar
+bool lock = false;
+
 // Número de texturas carregadas pela função LoadTextureImage()
 GLuint g_NumLoadedTextures = 0;
 
@@ -733,8 +736,8 @@ int main(int argc, char* argv[])
     glm::vec3 tree_position = glm::vec3(-40.0f, 8.0f, 60.0f);
     glm::vec3 plane_position = glm::vec3(0.0f, -1.0f, 0.0f);
     glm::vec4 plane_normal = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-    glm::vec3 cubo_min = glm::vec3(-100.0f, -100.0f, -100.0f);
-    glm::vec3 cubo_max = glm::vec3(100.0f, 100.0f, 100.0f);
+    glm::vec3 cubo_min = glm::vec3(-120.0f, -120.0f, -120.0f);
+    glm::vec3 cubo_max = glm::vec3(120.0f, 120.0f, 120.0f);
     glm::vec3 fly_position;
 
     // Pontos de controle da primeira curva de bezier
@@ -850,16 +853,25 @@ int main(int argc, char* argv[])
         {
 
             if (tecla_W_pressionada)
-                camera_position_c += -w * player.speed * delta_t;
-
+            {
+                camera_position_c.x += -w.x * player.speed * delta_t;
+                camera_position_c.z += -w.z * player.speed * delta_t;
+            }
             if (tecla_A_pressionada)
-                camera_position_c += -u * player.speed * delta_t;
-
+            {
+                camera_position_c.x += -u.x * player.speed * delta_t;
+                camera_position_c.z += -u.z * player.speed * delta_t;
+            }
             if (tecla_S_pressionada)
-                camera_position_c += w * player.speed * delta_t;
-
+            {
+                camera_position_c.x += w.x * player.speed * delta_t;
+                camera_position_c.z += w.z * player.speed * delta_t;
+            }
             if (tecla_D_pressionada)
-                camera_position_c += u * player.speed * delta_t;
+            {
+                camera_position_c.x += u.x * player.speed * delta_t;
+                camera_position_c.z += u.z * player.speed * delta_t;
+            }
         }
 
         if (!tp_end)
@@ -870,23 +882,35 @@ int main(int argc, char* argv[])
             // afasta lentamente a câmera do boss
             camera_position_c -= camera_view_vector * (0.01f * player.speed) * delta_t;
 
-        if (jump && !lookat_boss && !win && !gameOver)
-            player.is_jumping = true;
-
-        if (player.is_jumping)
+        if (jump == true && !lookat_boss && !win && !gameOver)
         {
-            camera_position_c.y += 0.5f * player.speed * delta_t;
+            player.is_jumping = true;
+            player.is_descending = false;
+        }
+
+        if (jump == false && !lookat_boss && !win && !gameOver)
+        {
             if (camera_position_c.y >= 3.0f)
             {
                 player.is_jumping = false;
                 player.is_descending = true;
+                lock = true;
+            }
+            if(camera_position_c.y <= 1.0f)
+            {
+                player.is_descending = false;
+                lock = false;
             }
         }
+
+        if (player.is_jumping)
+        {
+            camera_position_c.y += 0.5f * player.speed * delta_t;
+        }
+
         if (player.is_descending)
         {
             camera_position_c.y -= 0.5f * player.speed * delta_t;
-            if (camera_position_c.y <= 1.0f)
-                player.is_descending = false;
         }
 
         player.position = camera_position_c;
@@ -2635,16 +2659,25 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
         g_AngleZ += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
     }
 
-    // Se o usuário apertar a tecla espaço, resetamos os ângulos de Euler para zero.
-    if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
+    // Se o usuário apertar a tecla espaço o astronauta pula.
+    if (key == GLFW_KEY_SPACE)
     {
-        jump = true;
-        g_AngleX = 0.0f;
-        g_AngleY = 0.0f;
-        g_AngleZ = 0.0f;
+        if(camera_position_c.y <= 1.0f)
+            camera_position_c.y = 1.0f;
+
+        if(action == GLFW_PRESS && lock == false)
+        {
+            jump = true;
+        }
+        else if(action == GLFW_RELEASE && lock == false)
+        {
+            jump = false;
+        }
+        else if(action == GLFW_REPEAT)
+        {
+            jump = false;
+        }
     }
-    else
-        jump = false;
 
     // Se o usuário apertar a tecla P
     if (key == GLFW_KEY_P && action == GLFW_PRESS)
