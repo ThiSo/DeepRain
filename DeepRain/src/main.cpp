@@ -280,7 +280,7 @@ class Boss {
         float speed = 3.0f;
         float angle = 0.0f;
         float radius = 11.0f;
-        int lifes = 3;
+        int lifes = 300;
 };
 
 // Classe / Vector para a nave ///////////////
@@ -382,6 +382,7 @@ glm::vec4 camera_up_vector;
 glm::vec4 prev_view;
 glm::vec4 prev_pos;
 glm::vec4 direction;
+glm::vec4 monster_direction;
 
 // Pontos de posição do jogador
 glm::vec4 camera_position_c = glm::vec4(0.0f, 1.0f, 2.0f, 1.0f);
@@ -681,9 +682,9 @@ int main(int argc, char* argv[])
 
     glm::vec3 piece_0_position = glm::vec3(-54.0f, 0.5f, -54.0f);
     glm::vec3 piece_1_position = glm::vec3(55.0f, 29.0f, 35.0f);
-    glm::vec3 piece_2_position = glm::vec3(-35.0f, 3.0f, 65.0f);
+    glm::vec3 piece_2_position = glm::vec3(5.0f, 3.0f, -110.0f);
     glm::vec3 piece_3_position = glm::vec3(94.0f, 0.5f, 94.0f);
-    glm::vec3 piece_4_position = glm::vec3(98.0f, 2.5f, -98.0f);
+    glm::vec3 piece_4_position = glm::vec3(-98.0f, 2.5f, 98.0f);
 
     posVectorPiece.push_back(piece_0_position);
     posVectorPiece.push_back(piece_1_position);
@@ -750,7 +751,9 @@ int main(int argc, char* argv[])
 
     glm::vec3 statue_position = glm::vec3(-60.0f, 10.0f, -60.0f);
 
-    glm::vec3 tree_position = glm::vec3(-40.0f, 8.0f, 60.0f);
+    glm::vec3 tree_position = glm::vec3(0.0f, 8.0f, -115.0f);
+    glm::vec3 tree_2_position = glm::vec3(10.0f, 10.0f, -106.0f);
+    glm::vec3 tree_3_position = glm::vec3(-10.0f, 13.0f, -106.0f);
 
     glm::vec3 mount_position = glm::vec3(55.0f, 18.0f, 30.0f);
     glm::vec3 mount_max = glm::vec3(75.0f, 10.0f, 45.0f);
@@ -899,8 +902,6 @@ int main(int argc, char* argv[])
                 theta = 0;
             }
         }
-
-
 
         if(lookat_boss_init)
         {
@@ -1129,11 +1130,15 @@ int main(int argc, char* argv[])
         if (ColisaoPontoEsfera(player.position, hitbox_bunny, bunny_radius))
             bunny_alive = false;
 
-        if (ColisaoPontoEsfera(player.position, hitbox_spaceship, spaceship.radius))// && !boss.is_alive && num_pieces == 1)
+        if (ColisaoPontoEsfera(player.position, hitbox_spaceship, spaceship.radius) && !boss.is_alive && num_pieces == 5)
             win = true;
 
-        if (ColisaoEsferaEsfera(hitbox_spaceship, spaceship.radius, boss.hitbox, boss.radius))
+        if (ColisaoEsferaEsfera(hitbox_spaceship, spaceship.radius, boss.hitbox, boss.radius) && !gameOver)
+        {
+            death_position = player.position;
+            player.is_alive = false;
             gameOver = true;
+        }
 
         camera_position_c = player.position;
 
@@ -1141,7 +1146,7 @@ int main(int argc, char* argv[])
 
         /////////////////// MOVIMENTAÇÃO MONSTROS ////////////////////////////////
 
-        if (lookat_boss == false)
+        if (lookat_boss == false && !boss.is_alive)
         {
            for (size_t i = 0; i < monster.size(); ++i) {
 
@@ -1178,19 +1183,35 @@ int main(int argc, char* argv[])
                 }
             }
         }
+        else if (lookat_boss == false && boss.is_alive)
+        {
+            for (size_t i = 0; i < monster.size(); ++i)
+            {
+
+                if (monster[i].is_alive)
+                {
+                    monster_direction = (monster[i].position - spaceship.position) / norm(monster[i].position - spaceship.position);
+                    monster[i].angle = -atan2(monster_direction.z, monster_direction.x);
+                    monster[i].position.x -= 5 * monster_direction.x * delta_t;
+                    monster[i].position.z -= 5 * monster_direction.z * delta_t;
+
+                    monster[i].hitbox = monster[i].position;
+                }
+            }
+        }
 
         //////////////////////////////////////////////////////////////////////////
 
         /////////////////// MOVIMENTAÇÃO BOSS ////////////////////////////////////
 
-        if (num_pieces == 1 && boss.lifes > 0 && spawn_boss)
+        if (num_pieces == 5 && boss.lifes > 0 && spawn_boss)
         {
             boss_cutscene_time = (float)glfwGetTime();
             spawn_boss = false;
             lookat_boss_init = true;
         }
 
-        if (num_pieces == 1 && boss.lifes > 0 && ((float)glfwGetTime() <= boss_cutscene_time + 5.0f))
+        if (num_pieces == 5 && boss.lifes > 0 && ((float)glfwGetTime() <= boss_cutscene_time + 5.0f))
         {
             boss.is_alive = true;
             direction = (boss.position - spaceship.position) / norm(boss.position - spaceship.position);
@@ -1201,7 +1222,7 @@ int main(int argc, char* argv[])
 
         if (lookat_boss == false)
         {
-           if (num_pieces == 1 && boss.lifes > 0)
+           if (num_pieces == 5 && boss.lifes > 0)
            {
                 boss.position.x -= 5 * direction.x * delta_t;
                 boss.position.z -= 5 * direction.z * delta_t;
@@ -1319,7 +1340,7 @@ int main(int argc, char* argv[])
                         {
                             shot[i].is_active = false;
                             boss.lifes -= player.damage;
-                            cout << boss.lifes;
+                            // cout << boss.lifes;
                             if (boss.lifes <= 0)
                             {
                                 boss.is_alive = false;
@@ -1402,7 +1423,7 @@ int main(int argc, char* argv[])
                 if (i == 0 || i == 1)
                 {
                     model = Matrix_Translate(98.0f*pow(-1, i), 0.0f + (0.6*i), 98.0f*pow(-1, i+1))
-                          * Matrix_Scale(2.0f + i, 2.0f + i, 2.0f + i)
+                          * Matrix_Scale(2.0f * i, 2.0f * i, 2.0f * i)
                           * Matrix_Rotate_Y((3.141592f/2)*(i+1));
                 }
                 else
@@ -1443,48 +1464,61 @@ int main(int argc, char* argv[])
             glUniform1i(g_object_id_uniform, ROCK);
             DrawVirtualObject("the_rock");
 
-            model = Matrix_Translate(-90.0f, 1.0f, 110.0f)
+            model = Matrix_Translate(90.0f, 1.0f, -110.0f)
                   * Matrix_Scale(12.0f, 5.0f, 7.0f);
             glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
             glUniform1i(g_object_id_uniform, ROCK);
             DrawVirtualObject("the_rock");
 
-            model = Matrix_Translate(-110.0f, 2.0f, 100.0f)
+            model = Matrix_Translate(110.0f, 2.0f, -100.0f)
                   * Matrix_Scale(5.0f, 15.0f, 5.0f)
                   * Matrix_Rotate_Y(M_PI/2);
             glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
             glUniform1i(g_object_id_uniform, ROCK);
             DrawVirtualObject("the_rock");
 
-            model = Matrix_Translate(75.0f, 0.0f, -90.0f)
+            model = Matrix_Translate(112.0f, 1.0f, -120.0f)
+                  * Matrix_Scale(10.0f, 15.0f, 7.0f);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, ROCK);
+            DrawVirtualObject("the_rock");
+
+            model = Matrix_Translate(105.0f, 2.0f, -80.0f)
+                  * Matrix_Scale(7.0f, 10.0f, 7.0f)
+                  * Matrix_Rotate_Y(M_PI);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, ROCK);
+            DrawVirtualObject("the_rock");
+
+            model = Matrix_Translate(-75.0f, 0.0f, 90.0f)
                   * Matrix_Scale(12.0f, 12.0f, 12.0f)
                   * Matrix_Rotate_X(M_PI/2);
             glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
             glUniform1i(g_object_id_uniform, ROCK);
             DrawVirtualObject("the_rock");
 
-            model = Matrix_Translate(100.0f, 1.0f, -75.0f)
+            model = Matrix_Translate(-100.0f, 1.0f, 75.0f)
                   * Matrix_Scale(6.0f, 6.0f, 6.0f)
                   * Matrix_Rotate_Y(M_PI);
             glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
             glUniform1i(g_object_id_uniform, ROCK);
             DrawVirtualObject("the_rock");
 
-            model = Matrix_Translate(82.0f, 2.0f, -110.0f)
+            model = Matrix_Translate(-85.0f, 2.0f, 105.0f)
                   * Matrix_Scale(9.0f, 9.0f, 9.0f)
-                  * Matrix_Rotate_Y(M_PI);
+                  * Matrix_Rotate_Y(M_PI/4);
             glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
             glUniform1i(g_object_id_uniform, ROCK);
             DrawVirtualObject("the_rock");
 
-            model = Matrix_Translate(120.0f, 5.0f, -90.0f)
+            model = Matrix_Translate(-120.0f, 5.0f, 90.0f)
                   * Matrix_Scale(15.0f, 15.0f, 15.0f)
                   * Matrix_Rotate_Z(M_PI/2);
             glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
             glUniform1i(g_object_id_uniform, ROCK);
             DrawVirtualObject("the_rock");
 
-            model = Matrix_Translate(105.0f, 3.0f, -110.0f)
+            model = Matrix_Translate(-105.0f, 3.0f, 110.0f)
                   * Matrix_Scale(10.0f, 10.0f, 10.0f)
                   * Matrix_Rotate_Y(M_PI/2)
                   * Matrix_Rotate_X(M_PI)
@@ -1554,6 +1588,20 @@ int main(int argc, char* argv[])
 
             model = Matrix_Translate(tree_position.x, tree_position.y, tree_position.z)
                   * Matrix_Scale(10.0f, 10.0f, 10.0f);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, TREE);
+            DrawVirtualObject("the_tree");
+
+            model = Matrix_Translate(tree_2_position.x, tree_2_position.y, tree_2_position.z)
+                  * Matrix_Scale(12.0f, 12.0f, 12.0f)
+                  * Matrix_Rotate_Y(M_PI/2);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, TREE);
+            DrawVirtualObject("the_tree");
+
+            model = Matrix_Translate(tree_3_position.x, tree_3_position.y, tree_3_position.z)
+                  * Matrix_Scale(15.0f, 15.0f, 15.0f)
+                  * Matrix_Rotate_Y(-M_PI/2);
             glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
             glUniform1i(g_object_id_uniform, TREE);
             DrawVirtualObject("the_tree");
@@ -1719,7 +1767,7 @@ int main(int argc, char* argv[])
                     if (i == 0 || i == 1)
                     {
                         model = Matrix_Translate(98.0f*pow(-1, i), 0.0f + (0.6*i), 98.0f*pow(-1, i+1))
-                              * Matrix_Scale(2.0f + i, 2.0f + i, 2.0f + i)
+                              * Matrix_Scale(2.0f + i, 200.0f + i, 2.0f + i)
                               * Matrix_Rotate_Y((3.141592f/2)*(i+1));
                     }
                     else
@@ -2059,9 +2107,9 @@ int main(int argc, char* argv[])
                 points_per_kill = 300;
             }
 
-            if(monster_spawn_rate == 1)
+            if(monster_spawn_rate == 1 && !boss.is_alive)
             {
-                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f && monster.size() <= 50)
+                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f)
                 {
                     Monster new_monster;
 
@@ -2072,9 +2120,9 @@ int main(int argc, char* argv[])
                 }
             }
 
-            if(monster_spawn_rate == 2)
+            if(monster_spawn_rate == 2 && !boss.is_alive)
             {
-                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f && monster.size() <= 50)
+                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f)
                 {
                     for(int i = 0; i < 2; i++)
                     {
@@ -2088,9 +2136,9 @@ int main(int argc, char* argv[])
                 }
             }
 
-            if(monster_spawn_rate == 3)
+            if(monster_spawn_rate == 3 && !boss.is_alive)
             {
-                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f && monster.size() <= 50)
+                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f)
                 {
                     for(int i = 0; i < 1; i++)
                     {
@@ -2113,9 +2161,9 @@ int main(int argc, char* argv[])
                 }
             }
 
-            if(monster_spawn_rate == 4)
+            if(monster_spawn_rate == 4 && !boss.is_alive)
             {
-                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f && monster.size() <= 50)
+                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f)
                 {
                     for(int i = 0; i < 2; i++)
                     {
@@ -2138,9 +2186,9 @@ int main(int argc, char* argv[])
                 }
             }
 
-            if(monster_spawn_rate == 5)
+            if(monster_spawn_rate == 5 && !boss.is_alive)
             {
-                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f && monster.size() <= 50)
+                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f)
                 {
                     for(int i = 0; i < 2; i++)
                     {
@@ -2163,9 +2211,9 @@ int main(int argc, char* argv[])
                 }
             }
 
-            if(monster_spawn_rate == 6)
+            if(monster_spawn_rate == 6 && !boss.is_alive)
             {
-                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f && monster.size() <= 50)
+                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f)
                 {
                     for(int i = 0; i < 3; i++)
                     {
