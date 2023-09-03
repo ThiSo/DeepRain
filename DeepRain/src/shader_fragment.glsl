@@ -20,7 +20,7 @@ uniform mat4 view;
 uniform mat4 projection;
 
 // Identificador que define qual objeto está sendo desenhado no momento
-#define SKYBOX 0
+#define SKYBOX1 0
 #define BUNNY  1
 #define PLANE  2
 #define LIBERTY  3
@@ -37,6 +37,7 @@ uniform mat4 projection;
 #define GUN 14
 #define CAPSULE 15
 #define ASTRONAUT 16
+#define SKYBOX2 17
 
 uniform int object_id;
 
@@ -63,6 +64,7 @@ uniform sampler2D TextureImage14; //BOSS METAL
 uniform sampler2D TextureImage15; //GUN
 uniform sampler2D TextureImage16; //CAPSULE1
 uniform sampler2D TextureImage17; //ASTRONAUT
+uniform sampler2D TextureImage18; //UNIVERSE
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec4 color;
@@ -110,7 +112,7 @@ void main()
     vec3 Ka; // Refletância ambiente
     float q; // Expoente especular para o modelo de iluminação de Phong
 
-    if ( object_id == SKYBOX || object_id == BULLETS || object_id == HITBOX)
+    if ( object_id == SKYBOX1 || object_id == SKYBOX2 || object_id == BULLETS || object_id == HITBOX)
     {
         // PARA TEXTURA
         vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
@@ -183,7 +185,7 @@ void main()
     {
         Kd0 = texture(TextureImage4, vec2(p_U, p_V)).rgb;
     }
-    else if (object_id == SKYBOX || object_id == HITBOX)
+    else if (object_id == SKYBOX1 || object_id == HITBOX)
     {
         Kd0 = texture(TextureImage5, vec2(p_U, p_V)).rgb;
     }
@@ -231,6 +233,10 @@ void main()
     else if (object_id == ASTRONAUT)
     {
         Kd0 = texture(TextureImage17, vec2(p_U, p_V)).rgb;
+    }
+    else if (object_id == SKYBOX2)
+    {
+        Kd0 = texture(TextureImage18, vec2(p_U, p_V)).rgb;
     }
 
     // Espectro da fonte de iluminação

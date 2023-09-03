@@ -51,7 +51,7 @@
 #include "matrices.h"
 
 // Defines para os objetos
-#define SKYBOX 0
+#define SKYBOX1 0
 #define BUNNY  1
 #define PLANE  2
 #define LIBERTY 3
@@ -68,6 +68,7 @@
 #define GUN 14
 #define CAPSULE 15
 #define ASTRONAUT 16
+#define SKYBOX2 17
 
 // Prints para debugging
 #include "iostream"
@@ -494,6 +495,7 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/tc-gun.jpg");                       // TextureImage15
     LoadTextureImage("../../data/tc-capsule.png");                   // TextureImage16
     LoadTextureImage("../../data/tc-astronaut.jpg");                 // TextureImage17
+    LoadTextureImage("../../data/tc-universe.jpg");                  // TextureImage18
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -593,6 +595,7 @@ int main(int argc, char* argv[])
     float boss_cutscene_time = (float)glfwGetTime();          // Utilizado para definir por quantos frames a cutscene do boss deve durar
     float upgrade_massage_time;  // Utilizado para definir por quantos frames a mensagem de qual upgrade foi adquirido deve ficar na tela
     float last_monster_spawn_time = (float)glfwGetTime();
+    float cutscene_win_time = (float)glfwGetTime();
     int monster_spawn_rate = 1;
     int price = 100;
     int points_per_kill = 50;
@@ -615,7 +618,15 @@ int main(int argc, char* argv[])
     bool show_message_5 = false; // Mount climbing
     bool canBuy = true; // Utilizado para definir se uma capsula de upgrades já está disponivel para uma nova compra
 
+    glm::vec4 death_position;
+
     float r, x, y, z;
+    float r_win = 15.0f;
+    float x_win = 0.0f;
+    float y_win = 0.0f;
+    float z_win = -15.0f;
+    float theta = M_PI/2;
+    float var; // Usado para marcar de quanto em quanto tempo a camera deve alterar seu angulo de rotação
 
     float t = 0.0f;     // Parâmetro de interpolação da curva de beziér
 
@@ -727,9 +738,9 @@ int main(int argc, char* argv[])
 
     // Inicialização da nave //////////////////////////////////////////////
 
-    glm::vec3 spaceship_position = glm::vec3(0.0f, 0.0f, 7.5f);
+    glm::vec4 spaceship_position = glm::vec4(0.0f, 0.0f, 7.5f, 1.0f);
     Spaceship spaceship;
-    spaceship.position = glm::vec4(spaceship_position.x, spaceship_position.y, spaceship_position.z, 1.0f);
+    spaceship.position = spaceship_position;
 
     ///////////////////////////////////////////////////////////////////////
 
@@ -812,14 +823,8 @@ int main(int argc, char* argv[])
 
         camera_up_vector = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
 
-        if (win || gameOver)
-        {
-            camera_view_vector = glm::vec4(-500.0f, -100.0f, -500.0f, 1.0f) - player.position;
-        }
-
         // seta o movimento da camera para se mover em direção ao boss
-
-        else if (lookat_boss == true && ((float)glfwGetTime() <= boss_cutscene_time + 3.0f))
+        if (lookat_boss == true && ((float)glfwGetTime() <= boss_cutscene_time + 3.0f))
         {
             camera_view_vector = boss.position - player.position;
             going_to_boss = true;
@@ -842,13 +847,60 @@ int main(int argc, char* argv[])
         w = w / norm(w);
         u = u / norm(u);
 
-        /////////////////// MOVIMENTAÇÃO /////////////////////////////////////////
+        /////////////////// DEFINIÇÃO DA POSIÇÃO DA CAMERA NAS TELAS DE WIN E GAME OVER /////////////////////////////////////////
 
-        if ((win || gameOver) && tp_end)
+        if (gameOver && tp_end)
         {
-            camera_position_c = glm::vec4(-500.0f, -95.0f, -492.0f, 1.0f);
+            camera_position_c = glm::vec4(player.position.x + 5.0f, player.position.y + 5.0f, player.position.z, 1.0f);
             tp_end = false;
         }
+
+        if (win && tp_end)
+        {
+            cutscene_win_time = (float)glfwGetTime();
+            camera_position_c = glm::vec4(spaceship_position.x + 10.0f, spaceship_position.y + 10.0f, spaceship_position.z + 10.0f, 1.0f);
+            tp_end = false;
+        }
+
+        /////////////////// MOVIMENTAÇÃO /////////////////////////////////////////
+
+        // Movimentação da camera na tela de game over
+
+        if(gameOver && !tp_end)
+        {
+            // afasta a imagem lentamente do astronauta falecido
+            camera_view_vector = death_position - camera_position_c;
+            camera_position_c -= camera_view_vector * (0.01f * player.speed) * delta_t;
+        }
+
+        // Movimentação da nave na tela de win
+
+        if(win && !tp_end && (float)glfwGetTime() <= cutscene_win_time + 2.0f)
+        {
+            camera_view_vector = spaceship_position - camera_position_c;
+            movementVec = glm::vec4(-1.0f, 0.0f, 1.0f, 0.0f);
+            spaceship.position -= movementVec * 10.0f * delta_t;
+            var = (float)glfwGetTime();
+        }
+
+        if(win && !tp_end && (float)glfwGetTime() > cutscene_win_time + 2.0f)
+        {
+            camera_view_vector = glm::vec4(x_win, y_win, z_win, 0.0f);
+            x_win = r_win * cos(theta);
+            z_win = r_win * sin(theta);
+
+            if ((float)glfwGetTime() >= var + 0.02f)
+            {
+                var = (float)glfwGetTime();
+                theta = theta + 0.1f;
+            }
+            if (theta >= M_PI*2)
+            {
+                theta = 0;
+            }
+        }
+
+
 
         if(lookat_boss_init)
         {
@@ -915,10 +967,6 @@ int main(int argc, char* argv[])
                 camera_position_c.z += u.z * player.speed * delta_t;
             }
         }
-
-        if (!tp_end)
-            // afasta a imagem lentamente do astronauta falecido
-            camera_position_c -= camera_view_vector * (0.01f * player.speed) * delta_t;
 
         if (player.is_climbing)
         {
@@ -999,6 +1047,7 @@ int main(int argc, char* argv[])
                 player.lifes--;
                 if (player.lifes <= 0){
                     player.is_alive = false;
+                    death_position = player.position;
                     gameOver = true;
                 }
                 num_lifes = player.lifes;
@@ -1080,7 +1129,7 @@ int main(int argc, char* argv[])
         if (ColisaoPontoEsfera(player.position, hitbox_bunny, bunny_radius))
             bunny_alive = false;
 
-        if (ColisaoPontoEsfera(player.position, hitbox_spaceship, spaceship.radius) && !boss.is_alive && num_pieces == 1)
+        if (ColisaoPontoEsfera(player.position, hitbox_spaceship, spaceship.radius))// && !boss.is_alive && num_pieces == 1)
             win = true;
 
         if (ColisaoEsferaEsfera(hitbox_spaceship, spaceship.radius, boss.hitbox, boss.radius))
@@ -1190,402 +1239,728 @@ int main(int argc, char* argv[])
         glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
         glUniformMatrix4fv(g_projection_uniform , 1 , GL_FALSE , glm::value_ptr(projection));
 
-        //////////////////////////////////////////////////////////////////////////
-
-        /////////////////// SKYBOX ///////////////////////////////////////////////
 
         if (!win && !gameOver)
         {
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// SKYBOX ///////////////////////////////////////////////
+
             model = Matrix_Translate(player.position.x, player.position.y, player.position.z);
             glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-            glUniform1i(g_object_id_uniform, SKYBOX);
+            glUniform1i(g_object_id_uniform, SKYBOX1);
             glDisable(GL_CULL_FACE);
             glDisable(GL_DEPTH_TEST);
             DrawVirtualObject("the_sphere");
             glEnable(GL_CULL_FACE);
             glEnable(GL_DEPTH_TEST);
-        }
 
-        //////////////////////////////////////////////////////////////////////////
+            //////////////////////////////////////////////////////////////////////////
 
-        /////////////////// TIROS ////////////////////////////////////////////////
+            /////////////////// TIROS ////////////////////////////////////////////////
 
-        if (!lookat_boss && !win && !gameOver)
-        {
-            if (g_LeftMouseButtonPressed && num_shots > 0)
+            if (!lookat_boss && !win && !gameOver)
             {
-                // Impede que o jogador crie infinitos tiros segurando o botão esquerdo
-                g_LeftMouseButtonPressed = false;
-
-                // Cria um novo objeto de projectile
-                Projectile new_shot;
-
-                // Propriedades do tiro
-                new_shot.is_active = true;
-                new_shot.position = glm::vec4(player.position.x, player.position.y, player.position.z, 1.0f);
-                new_shot.speed = glm::vec4(10 * camera_view_vector.x, 10 * camera_view_vector.y, 10 * camera_view_vector.z, 0.0f);
-                shot.push_back(new_shot);
-
-                // Diminui o número de tiros possíveis
-                num_shots--;
-                if (num_shots < 0)
-                    num_shots = 0;
-            }
-
-            if (reload)
-                num_shots = 6;
-
-            for (size_t i = 0; i < shot.size(); ++i) {
-
-                if (shot[i].is_active)
+                if (g_LeftMouseButtonPressed && num_shots > 0)
                 {
+                    // Impede que o jogador crie infinitos tiros segurando o botão esquerdo
+                    g_LeftMouseButtonPressed = false;
 
-                    // Atualiza posição do tiro
-                    shot[i].position += shot[i].speed * delta_t;
+                    // Cria um novo objeto de projectile
+                    Projectile new_shot;
 
-                    // Se o tiro percorreu mais de 60 unidades de distância ou colidiu com um monstro, ele some
-                    if (length(player.position - shot[i].position) > 60.0f)
-                        shot[i].is_active = false;
+                    // Propriedades do tiro
+                    new_shot.is_active = true;
+                    new_shot.position = glm::vec4(player.position.x, player.position.y, player.position.z, 1.0f);
+                    new_shot.speed = glm::vec4(10 * camera_view_vector.x, 10 * camera_view_vector.y, 10 * camera_view_vector.z, 0.0f);
+                    shot.push_back(new_shot);
 
-                    for (size_t j = 0; j < monster.size(); j++)
+                    // Diminui o número de tiros possíveis
+                    num_shots--;
+                    if (num_shots < 0)
+                        num_shots = 0;
+                }
+
+                if (reload)
+                    num_shots = 6;
+
+                for (size_t i = 0; i < shot.size(); ++i) {
+
+                    if (shot[i].is_active)
                     {
-                        if (ColisaoEsferaEsfera(shot[i].position, shot[i].radius, monster[j].hitbox, monster[j].radius))
+
+                        // Atualiza posição do tiro
+                        shot[i].position += shot[i].speed * delta_t;
+
+                        // Se o tiro percorreu mais de 60 unidades de distância ou colidiu com um monstro, ele some
+                        if (length(player.position - shot[i].position) > 60.0f)
+                            shot[i].is_active = false;
+
+                        for (size_t j = 0; j < monster.size(); j++)
+                        {
+                            if (ColisaoEsferaEsfera(shot[i].position, shot[i].radius, monster[j].hitbox, monster[j].radius))
+                            {
+                                shot[i].is_active = false;
+                                monster[j].lifes -= player.damage;
+                                if (monster[j].lifes == 0){
+                                    monster[j].is_alive = false;
+                                    player.points += points_per_kill;
+                                }
+                                if (monster[j].lifes < 0 && monster[j].is_alive)
+                                {
+                                    monster[j].is_alive = false;
+                                    monster[j].lifes = 0;
+                                    player.points += points_per_kill;
+                                }
+                            }
+                        }
+
+                        if (ColisaoEsferaEsfera(shot[i].position, shot[i].radius, boss.position, boss.radius))
                         {
                             shot[i].is_active = false;
-                            monster[j].lifes -= player.damage;
-                            if (monster[j].lifes == 0){
-                                monster[j].is_alive = false;
-                                player.points += points_per_kill;
-                            }
-                            if (monster[j].lifes < 0 && monster[j].is_alive)
+                            boss.lifes -= player.damage;
+                            cout << boss.lifes;
+                            if (boss.lifes <= 0)
                             {
-                                monster[j].is_alive = false;
-                                monster[j].lifes = 0;
-                                player.points += points_per_kill;
+                                boss.is_alive = false;
+                                boss.lifes = 0;
                             }
                         }
-                    }
 
-                    if (ColisaoEsferaEsfera(shot[i].position, shot[i].radius, boss.position, boss.radius))
-                    {
-                        shot[i].is_active = false;
-                        boss.lifes -= player.damage;
-                        cout << boss.lifes;
-                        if (boss.lifes <= 0)
-                        {
-                            boss.is_alive = false;
-                            boss.lifes = 0;
-                        }
-                    }
+                        // Desenha o tiro após feita a atualização
+                        model = Matrix_Translate(shot[i].position.x, shot[i].position.y, shot[i].position.z)
+                              * Matrix_Scale(0.025f, 0.025f, 0.025f);
+                        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                        glUniform1i(g_object_id_uniform, BULLETS);
+                        DrawVirtualObject("the_sphere");
 
-                    // Desenha o tiro após feita a atualização
-                    model = Matrix_Translate(shot[i].position.x, shot[i].position.y, shot[i].position.z)
-                          * Matrix_Scale(0.025f, 0.025f, 0.025f);
+                    }
+                }
+            }
+
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// COELHO ///////////////////////////////////////////////
+
+            model = Matrix_Translate(bunny_position.x, bunny_position.y, bunny_position.z)
+                  * Matrix_Rotate_Z(g_AngleZ)
+                  * Matrix_Rotate_Y(g_AngleY)
+                  * Matrix_Rotate_X(g_AngleX);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, BUNNY);
+            if (bunny_alive)
+                DrawVirtualObject("the_bunny");
+
+
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// PLANO ////////////////////////////////////////////////
+
+            model = Matrix_Translate(plane_position.x, plane_position.y, plane_position.z)
+                  * Matrix_Scale(200.0f, 1.0f, 200.0f);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, PLANE);
+            DrawVirtualObject("the_plane");
+
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// LIBERDADE ////////////////////////////////////////////
+
+            model = Matrix_Translate(statue_position.x, statue_position.y, statue_position.z)
+                  * Matrix_Scale(10.0f, 10.0f, 10.0f)
+                  * Matrix_Rotate_Y(3.141592f*0.75f);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, LIBERTY);
+            DrawVirtualObject("the_liberty");
+
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// MONSTRO //////////////////////////////////////////////
+
+            for (size_t i = 0; i < monster.size(); ++i) {
+
+                if (monster[i].is_alive)
+                {
+                    model = Matrix_Translate(monster[i].position.x, monster[i].position.y, monster[i].position.z)
+                          * Matrix_Scale(2.0f, 2.0f, 2.0f)
+                          * Matrix_Rotate_Y(monster[i].angle);
                     glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-                    glUniform1i(g_object_id_uniform, BULLETS);
-                    DrawVirtualObject("the_sphere");
+                    glUniform1i(g_object_id_uniform, MONSTER);
+                    if (monster[i].lifes > 0)
+                        DrawVirtualObject("the_monster");
+                }
 
+            }
+
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// PEDRAS ///////////////////////////////////////////////
+
+            // definindo os quatro cantos do mapa
+            for (int i=0; i<4; i++)
+            {
+                if (i == 0 || i == 1)
+                {
+                    model = Matrix_Translate(98.0f*pow(-1, i), 0.0f + (0.6*i), 98.0f*pow(-1, i+1))
+                          * Matrix_Scale(2.0f + i, 2.0f + i, 2.0f + i)
+                          * Matrix_Rotate_Y((3.141592f/2)*(i+1));
+                }
+                else
+                {
+                    model = Matrix_Translate(98.0f*pow(-1, i), 0.0f + (0.6*i), 98.0f*pow(-1, i))
+                          * Matrix_Scale(2.0f + i, 2.0f + i, 2.0f + i)
+                          * Matrix_Rotate_Y((3.141592f/2)*(i+1));
+                }
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, ROCK);
+                DrawVirtualObject("the_rock");
+            }
+
+            model = Matrix_Translate(80.0f, 1.0f, 110.0f)
+                  * Matrix_Scale(7.0f, 7.0f, 7.0f)
+                  * Matrix_Rotate_Y(M_PI/3);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, ROCK);
+            DrawVirtualObject("the_rock");
+
+            model = Matrix_Translate(110.0f, 0.5f, 90.0f)
+                  * Matrix_Scale(12.0f, 12.0f, 9.0f)
+                  * Matrix_Rotate_Y(M_PI/2);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, ROCK);
+            DrawVirtualObject("the_rock");
+
+            model = Matrix_Translate(-90.0f, 1.0f, -110.0f)
+                  * Matrix_Scale(12.0f, 5.0f, 7.0f);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, ROCK);
+            DrawVirtualObject("the_rock");
+
+            model = Matrix_Translate(-110.0f, 2.0f, -100.0f)
+                  * Matrix_Scale(5.0f, 5.0f, 5.0f)
+                  * Matrix_Rotate_Y(M_PI/2);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, ROCK);
+            DrawVirtualObject("the_rock");
+
+            model = Matrix_Translate(-90.0f, 1.0f, 110.0f)
+                  * Matrix_Scale(12.0f, 5.0f, 7.0f);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, ROCK);
+            DrawVirtualObject("the_rock");
+
+            model = Matrix_Translate(-110.0f, 2.0f, 100.0f)
+                  * Matrix_Scale(5.0f, 15.0f, 5.0f)
+                  * Matrix_Rotate_Y(M_PI/2);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, ROCK);
+            DrawVirtualObject("the_rock");
+
+            model = Matrix_Translate(75.0f, 0.0f, -90.0f)
+                  * Matrix_Scale(12.0f, 12.0f, 12.0f)
+                  * Matrix_Rotate_X(M_PI/2);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, ROCK);
+            DrawVirtualObject("the_rock");
+
+            model = Matrix_Translate(100.0f, 1.0f, -75.0f)
+                  * Matrix_Scale(6.0f, 6.0f, 6.0f)
+                  * Matrix_Rotate_Y(M_PI);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, ROCK);
+            DrawVirtualObject("the_rock");
+
+            model = Matrix_Translate(82.0f, 2.0f, -110.0f)
+                  * Matrix_Scale(9.0f, 9.0f, 9.0f)
+                  * Matrix_Rotate_Y(M_PI);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, ROCK);
+            DrawVirtualObject("the_rock");
+
+            model = Matrix_Translate(120.0f, 5.0f, -90.0f)
+                  * Matrix_Scale(15.0f, 15.0f, 15.0f)
+                  * Matrix_Rotate_Z(M_PI/2);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, ROCK);
+            DrawVirtualObject("the_rock");
+
+            model = Matrix_Translate(105.0f, 3.0f, -110.0f)
+                  * Matrix_Scale(10.0f, 10.0f, 10.0f)
+                  * Matrix_Rotate_Y(M_PI/2)
+                  * Matrix_Rotate_X(M_PI)
+                  * Matrix_Rotate_Z(M_PI/2);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, ROCK);
+            DrawVirtualObject("the_rock");
+
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// NAVE /////////////////////////////////////////////////
+
+            model = Matrix_Translate(spaceship.position.x, spaceship.position.y, spaceship.position.z)
+                  * Matrix_Scale(5.0f, 5.0f, 5.0f)
+                  * Matrix_Rotate_Y(3.141592f*0.75f);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, SPACESHIP);
+            DrawVirtualObject("the_ship");
+
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// MORRO ////////////////////////////////////////////////
+
+            model = Matrix_Translate(mount_position.x, mount_position.y, mount_position.z)
+                  * Matrix_Scale(20.0f, 20.0f, 20.0f);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, MOUNT);
+            DrawVirtualObject("the_mount");
+
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// PEDAÇO DA NAVE ///////////////////////////////////////
+
+            for(int i = 0; i < 5; i++){
+                if(piece[i].collected == false){
+                    model = Matrix_Translate(piece[i].position.x, piece[i].position.y, piece[i].position.z)
+                          * Matrix_Scale(0.4f, 0.4f, 0.4f)
+                          * Matrix_Rotate_Y(fmod(prev_time, piece[i].angle));
+                    glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                    glUniform1i(g_object_id_uniform, PIECE);
+                    DrawVirtualObject("the_piece");
+                }
+
+            }
+
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// CAPSULAS /////////////////////////////////////////////
+
+            for (int i = 0; i < 3; i++){
+                model = Matrix_Translate(capsule[i].position.x, capsule[i].position.y, capsule[i].position.z)
+                      * Matrix_Scale(capsule[i].radius, capsule[i].radius, capsule[i].radius)
+                      * Matrix_Rotate_Y(fmod(prev_time, capsule[i].angle));
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, CAPSULE);
+            DrawVirtualObject("the_capsule");
+            DrawVirtualObject("Cylinder.011_Cylinder.022");
+            DrawVirtualObject("Cylinder.008_Cylinder.021");
+            DrawVirtualObject("Cylinder.005_Cylinder.010");
+            DrawVirtualObject("Cylinder.004_Cylinder.009");
+            }
+
+
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// ARVORES ///////////////////////////////////////////////
+
+            model = Matrix_Translate(tree_position.x, tree_position.y, tree_position.z)
+                  * Matrix_Scale(10.0f, 10.0f, 10.0f);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, TREE);
+            DrawVirtualObject("the_tree");
+
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// BOSS /////////////////////////////////////////////////
+
+            if(boss.is_alive == true) {
+                model = Matrix_Translate(boss.position.x, boss.position.y, boss.position.z)
+                  * Matrix_Scale(10.0f, 10.0f, 10.0f)
+                  * Matrix_Rotate_Y(boss.angle);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, BOSS);
+                DrawVirtualObject("the_boss");
+            }
+
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// ARMA /////////////////////////////////////////////////
+
+            if (!lookat_boss && !win && !gameOver)
+            {
+                model = Matrix_Translate(0.06f, -0.115f, -0.2f)
+                      * Matrix_Scale(0.1f, 0.1f, 0.1f)
+                      * Matrix_Rotate_Y(M_PI);
+                view = Matrix_Identity();
+                glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, GUN);
+                DrawVirtualObject("the_gun");
+                view = Matrix_Camera_View(camera_position_c, camera_view_vector, camera_up_vector);
+                glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
+            }
+
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// BEZIER ///////////////////////////////////////////////
+
+            // Calcula a posição atual do monstro na curva de Bezier
+            if (ciclo_voo)
+                fly_position = CalculaBezier(t, ponto_controle_1, ponto_controle_2, ponto_controle_3, ponto_controle_4);
+            else
+                fly_position = CalculaBezier(t, ponto_controle_5, ponto_controle_6, ponto_controle_7, ponto_controle_8);
+
+            fly_monster_angle = -atan2(fly_position.z - player.position.z, fly_position.x - player.position.x);
+
+            model = Matrix_Translate(fly_position.x, fly_position.y, fly_position.z)
+                  * Matrix_Rotate_Y(fly_monster_angle);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, FLYMONSTER);
+            DrawVirtualObject("the_flymonster");
+
+            // Incremento para que o objeto se mova na curva
+            t += 0.008f;
+
+            // Resete o parâmetro de interpolação para reiniciar o movimento ao completar a curva
+            if (t > 1.0f)
+            {
+                t = 0.0f;
+                ciclo_voo = !ciclo_voo;
+            }
+        }
+
+        // GAME OVER ////////////////////////////////////////////////////////////////////////
+
+        if (gameOver)
+        {
+
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// SKYBOX ///////////////////////////////////////////////
+
+            model = Matrix_Translate(player.position.x, player.position.y, player.position.z);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, SKYBOX1);
+            glDisable(GL_CULL_FACE);
+            glDisable(GL_DEPTH_TEST);
+            DrawVirtualObject("the_sphere");
+            glEnable(GL_CULL_FACE);
+            glEnable(GL_DEPTH_TEST);
+
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// ASTRONAUTA ///////////////////////////////////////////
+
+            if (!tp_end)
+            {
+                model = Matrix_Translate(death_position.x, death_position.y, death_position.z)
+                      * Matrix_Rotate_Z(M_PI/2)
+                      * Matrix_Rotate_Y(M_PI);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, ASTRONAUT);
+                DrawVirtualObject("the_astronaut_1");
+                DrawVirtualObject("the_astronaut_2");
+                DrawVirtualObject("the_astronaut_3");
+                DrawVirtualObject("the_astronaut_4");
+                DrawVirtualObject("the_astronaut_5");
+                DrawVirtualObject("the_astronaut_6");
+                DrawVirtualObject("the_astronaut_7");
+                DrawVirtualObject("the_astronaut_8");
+
+                //////////////////////////////////////////////////////////////////////////
+
+                /////////////////// PLANO ////////////////////////////////////////////////
+
+                model = Matrix_Translate(plane_position.x, plane_position.y, plane_position.z)
+                      * Matrix_Scale(200.0f, 1.0f, 200.0f);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, PLANE);
+                DrawVirtualObject("the_plane");
+
+                //////////////////////////////////////////////////////////////////////////
+
+                /////////////////// COELHO ///////////////////////////////////////////////
+
+                model = Matrix_Translate(bunny_position.x, bunny_position.y, bunny_position.z)
+                      * Matrix_Rotate_Z(g_AngleZ)
+                      * Matrix_Rotate_Y(g_AngleY)
+                      * Matrix_Rotate_X(g_AngleX);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, BUNNY);
+                if (bunny_alive)
+                    DrawVirtualObject("the_bunny");
+
+                //////////////////////////////////////////////////////////////////////////
+
+                /////////////////// LIBERDADE ////////////////////////////////////////////
+
+                model = Matrix_Translate(statue_position.x, statue_position.y, statue_position.z)
+                      * Matrix_Scale(10.0f, 10.0f, 10.0f)
+                      * Matrix_Rotate_Y(3.141592f*0.75f);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, LIBERTY);
+                DrawVirtualObject("the_liberty");
+
+                //////////////////////////////////////////////////////////////////////////
+
+                /////////////////// MONSTRO //////////////////////////////////////////////
+
+                for (size_t i = 0; i < monster.size(); ++i) {
+
+                    if (monster[i].is_alive)
+                    {
+                        model = Matrix_Translate(monster[i].position.x, monster[i].position.y, monster[i].position.z)
+                              * Matrix_Scale(2.0f, 2.0f, 2.0f)
+                              * Matrix_Rotate_Y(monster[i].angle);
+                        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                        glUniform1i(g_object_id_uniform, MONSTER);
+                        if (monster[i].lifes > 0)
+                            DrawVirtualObject("the_monster");
+                    }
+
+                }
+
+                //////////////////////////////////////////////////////////////////////////
+
+                /////////////////// PEDRAS ///////////////////////////////////////////////
+
+                // definindo os quatro cantos do mapa
+                for (int i=0; i<4; i++)
+                {
+                    if (i == 0 || i == 1)
+                    {
+                        model = Matrix_Translate(98.0f*pow(-1, i), 0.0f + (0.6*i), 98.0f*pow(-1, i+1))
+                              * Matrix_Scale(2.0f + i, 2.0f + i, 2.0f + i)
+                              * Matrix_Rotate_Y((3.141592f/2)*(i+1));
+                    }
+                    else
+                    {
+                        model = Matrix_Translate(98.0f*pow(-1, i), 0.0f + (0.6*i), 98.0f*pow(-1, i))
+                              * Matrix_Scale(2.0f + i, 2.0f + i, 2.0f + i)
+                              * Matrix_Rotate_Y((3.141592f/2)*(i+1));
+                    }
+                    glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                    glUniform1i(g_object_id_uniform, ROCK);
+                    DrawVirtualObject("the_rock");
+                }
+
+                model = Matrix_Translate(80.0f, 1.0f, 110.0f)
+                      * Matrix_Scale(7.0f, 7.0f, 7.0f)
+                      * Matrix_Rotate_Y(M_PI/3);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, ROCK);
+                DrawVirtualObject("the_rock");
+
+                model = Matrix_Translate(110.0f, 0.5f, 90.0f)
+                      * Matrix_Scale(12.0f, 12.0f, 9.0f)
+                      * Matrix_Rotate_Y(M_PI/2);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, ROCK);
+                DrawVirtualObject("the_rock");
+
+                model = Matrix_Translate(-90.0f, 1.0f, -110.0f)
+                      * Matrix_Scale(12.0f, 5.0f, 7.0f);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, ROCK);
+                DrawVirtualObject("the_rock");
+
+                model = Matrix_Translate(-110.0f, 2.0f, -100.0f)
+                      * Matrix_Scale(5.0f, 5.0f, 5.0f)
+                      * Matrix_Rotate_Y(M_PI/2);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, ROCK);
+                DrawVirtualObject("the_rock");
+
+                model = Matrix_Translate(-90.0f, 1.0f, 110.0f)
+                      * Matrix_Scale(12.0f, 5.0f, 7.0f);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, ROCK);
+                DrawVirtualObject("the_rock");
+
+                model = Matrix_Translate(-110.0f, 2.0f, 100.0f)
+                      * Matrix_Scale(5.0f, 15.0f, 5.0f)
+                      * Matrix_Rotate_Y(M_PI/2);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, ROCK);
+                DrawVirtualObject("the_rock");
+
+                model = Matrix_Translate(75.0f, 0.0f, -90.0f)
+                      * Matrix_Scale(12.0f, 12.0f, 12.0f)
+                      * Matrix_Rotate_X(M_PI/2);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, ROCK);
+                DrawVirtualObject("the_rock");
+
+                model = Matrix_Translate(100.0f, 1.0f, -75.0f)
+                      * Matrix_Scale(6.0f, 6.0f, 6.0f)
+                      * Matrix_Rotate_Y(M_PI);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, ROCK);
+                DrawVirtualObject("the_rock");
+
+                model = Matrix_Translate(82.0f, 2.0f, -110.0f)
+                      * Matrix_Scale(9.0f, 9.0f, 9.0f)
+                      * Matrix_Rotate_Y(M_PI);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, ROCK);
+                DrawVirtualObject("the_rock");
+
+                model = Matrix_Translate(120.0f, 5.0f, -90.0f)
+                      * Matrix_Scale(15.0f, 15.0f, 15.0f)
+                      * Matrix_Rotate_Z(M_PI/2);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, ROCK);
+                DrawVirtualObject("the_rock");
+
+                model = Matrix_Translate(105.0f, 3.0f, -110.0f)
+                      * Matrix_Scale(10.0f, 10.0f, 10.0f)
+                      * Matrix_Rotate_Y(M_PI/2)
+                      * Matrix_Rotate_X(M_PI)
+                      * Matrix_Rotate_Z(M_PI/2);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, ROCK);
+                DrawVirtualObject("the_rock");
+
+                //////////////////////////////////////////////////////////////////////////
+
+                /////////////////// NAVE /////////////////////////////////////////////////
+
+                model = Matrix_Translate(spaceship.position.x, spaceship.position.y, spaceship.position.z)
+                      * Matrix_Scale(5.0f, 5.0f, 5.0f)
+                      * Matrix_Rotate_Y(3.141592f*0.75f);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, SPACESHIP);
+                DrawVirtualObject("the_ship");
+
+                //////////////////////////////////////////////////////////////////////////
+
+                /////////////////// MORRO ////////////////////////////////////////////////
+
+                model = Matrix_Translate(mount_position.x, mount_position.y, mount_position.z)
+                      * Matrix_Scale(20.0f, 20.0f, 20.0f);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, MOUNT);
+                DrawVirtualObject("the_mount");
+
+                //////////////////////////////////////////////////////////////////////////
+
+                /////////////////// PEDAÇO DA NAVE ///////////////////////////////////////
+
+                for(int i = 0; i < 5; i++){
+                    if(piece[i].collected == false){
+                        model = Matrix_Translate(piece[i].position.x, piece[i].position.y, piece[i].position.z)
+                              * Matrix_Scale(0.4f, 0.4f, 0.4f)
+                              * Matrix_Rotate_Y(fmod(prev_time, piece[i].angle));
+                        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                        glUniform1i(g_object_id_uniform, PIECE);
+                        DrawVirtualObject("the_piece");
+                    }
+
+                }
+
+                //////////////////////////////////////////////////////////////////////////
+
+                /////////////////// CAPSULAS /////////////////////////////////////////////
+
+                for (int i = 0; i < 3; i++){
+                    model = Matrix_Translate(capsule[i].position.x, capsule[i].position.y, capsule[i].position.z)
+                          * Matrix_Scale(capsule[i].radius, capsule[i].radius, capsule[i].radius)
+                          * Matrix_Rotate_Y(fmod(prev_time, capsule[i].angle));
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, CAPSULE);
+                DrawVirtualObject("the_capsule");
+                DrawVirtualObject("Cylinder.011_Cylinder.022");
+                DrawVirtualObject("Cylinder.008_Cylinder.021");
+                DrawVirtualObject("Cylinder.005_Cylinder.010");
+                DrawVirtualObject("Cylinder.004_Cylinder.009");
+                }
+
+
+                //////////////////////////////////////////////////////////////////////////
+
+                /////////////////// ARVORES ///////////////////////////////////////////////
+
+                model = Matrix_Translate(tree_position.x, tree_position.y, tree_position.z)
+                      * Matrix_Scale(10.0f, 10.0f, 10.0f);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, TREE);
+                DrawVirtualObject("the_tree");
+
+                //////////////////////////////////////////////////////////////////////////
+
+                /////////////////// BOSS /////////////////////////////////////////////////
+
+                if(boss.is_alive == true) {
+                    model = Matrix_Translate(boss.position.x, boss.position.y, boss.position.z)
+                      * Matrix_Scale(10.0f, 10.0f, 10.0f)
+                      * Matrix_Rotate_Y(boss.angle);
+                    glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                    glUniform1i(g_object_id_uniform, BOSS);
+                    DrawVirtualObject("the_boss");
                 }
             }
         }
 
-        //////////////////////////////////////////////////////////////////////////
+        // WIN 1 /////////////////////////////////////////////////////////////////////////////////
 
-        /////////////////// COELHO ///////////////////////////////////////////////
-
-        model = Matrix_Translate(bunny_position.x, bunny_position.y, bunny_position.z)
-              * Matrix_Rotate_Z(g_AngleZ)
-              * Matrix_Rotate_Y(g_AngleY)
-              * Matrix_Rotate_X(g_AngleX);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, BUNNY);
-        if (bunny_alive)
-            DrawVirtualObject("the_bunny");
-
-        //////////////////////////////////////////////////////////////////////////
-
-        /////////////////// ASTRONAUTA ///////////////////////////////////////////
-
-        if (!tp_end)
+        if(win && (float)glfwGetTime() <= cutscene_win_time + 2.0f)
         {
-            model = Matrix_Translate(-500.0f, -100.0f, -500.0f)
-                  * Matrix_Rotate_Z(M_PI/2)
-                  * Matrix_Rotate_Y(M_PI);
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// SKYBOX ///////////////////////////////////////////////
+
+            model = Matrix_Translate(player.position.x, player.position.y, player.position.z);
             glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-            glUniform1i(g_object_id_uniform, ASTRONAUT);
-            DrawVirtualObject("the_astronaut_1");
-            DrawVirtualObject("the_astronaut_2");
-            DrawVirtualObject("the_astronaut_3");
-            DrawVirtualObject("the_astronaut_4");
-            DrawVirtualObject("the_astronaut_5");
-            DrawVirtualObject("the_astronaut_6");
-            DrawVirtualObject("the_astronaut_7");
-            DrawVirtualObject("the_astronaut_8");
+            glUniform1i(g_object_id_uniform, SKYBOX1);
+            glDisable(GL_CULL_FACE);
+            glDisable(GL_DEPTH_TEST);
+            DrawVirtualObject("the_sphere");
+            glEnable(GL_CULL_FACE);
+            glEnable(GL_DEPTH_TEST);
+
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// PLANO ////////////////////////////////////////////////
+
+            model = Matrix_Translate(plane_position.x, plane_position.y, plane_position.z)
+                  * Matrix_Scale(200.0f, 1.0f, 200.0f);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, PLANE);
+            DrawVirtualObject("the_plane");
+
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// NAVE /////////////////////////////////////////////////
+
+            model = Matrix_Translate(spaceship.position.x, spaceship.position.y, spaceship.position.z)
+                  * Matrix_Scale(5.0f, 5.0f, 5.0f)
+                  * Matrix_Rotate_Y(3.141592f*0.75f);
+            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(g_object_id_uniform, SPACESHIP);
+            DrawVirtualObject("the_ship");
         }
 
-        //////////////////////////////////////////////////////////////////////////
+        // WIN 2 ////////////////////////////////////////////////////////////////////////////////////
 
-        /////////////////// PLANO ////////////////////////////////////////////////
-
-        model = Matrix_Translate(plane_position.x, plane_position.y, plane_position.z)
-              * Matrix_Scale(200.0f, 1.0f, 200.0f);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, PLANE);
-        DrawVirtualObject("the_plane");
-
-        //////////////////////////////////////////////////////////////////////////
-
-        /////////////////// LIBERDADE ////////////////////////////////////////////
-
-        model = Matrix_Translate(statue_position.x, statue_position.y, statue_position.z)
-              * Matrix_Scale(10.0f, 10.0f, 10.0f)
-              * Matrix_Rotate_Y(3.141592f*0.75f);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, LIBERTY);
-        DrawVirtualObject("the_liberty");
-
-        //////////////////////////////////////////////////////////////////////////
-
-        /////////////////// MONSTRO //////////////////////////////////////////////
-
-        for (size_t i = 0; i < monster.size(); ++i) {
-
-            if (monster[i].is_alive)
-            {
-                model = Matrix_Translate(monster[i].position.x, monster[i].position.y, monster[i].position.z)
-                      * Matrix_Scale(2.0f, 2.0f, 2.0f)
-                      * Matrix_Rotate_Y(monster[i].angle);
-                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-                glUniform1i(g_object_id_uniform, MONSTER);
-                if (monster[i].lifes > 0)
-                    DrawVirtualObject("the_monster");
-            }
-
-        }
-
-        //////////////////////////////////////////////////////////////////////////
-
-        /////////////////// PEDRAS ///////////////////////////////////////////////
-
-        // definindo os quatro cantos do mapa
-        for (int i=0; i<4; i++)
+        if (win && (float)glfwGetTime() > cutscene_win_time + 2.0f)
         {
-            if (i == 0 || i == 1)
-            {
-                model = Matrix_Translate(98.0f*pow(-1, i), 0.0f + (0.6*i), 98.0f*pow(-1, i+1))
-                      * Matrix_Scale(2.0f + i, 2.0f + i, 2.0f + i)
-                      * Matrix_Rotate_Y((3.141592f/2)*(i+1));
-            }
-            else
-            {
-                model = Matrix_Translate(98.0f*pow(-1, i), 0.0f + (0.6*i), 98.0f*pow(-1, i))
-                      * Matrix_Scale(2.0f + i, 2.0f + i, 2.0f + i)
-                      * Matrix_Rotate_Y((3.141592f/2)*(i+1));
-            }
+            //////////////////////////////////////////////////////////////////////////
+
+            /////////////////// SKYBOX ///////////////////////////////////////////////
+
+            model = Matrix_Translate(player.position.x, player.position.y, player.position.z);
             glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-            glUniform1i(g_object_id_uniform, ROCK);
-            DrawVirtualObject("the_rock");
-        }
+            glUniform1i(g_object_id_uniform, SKYBOX2);
+            glDisable(GL_CULL_FACE);
+            glDisable(GL_DEPTH_TEST);
+            DrawVirtualObject("the_sphere");
+            glEnable(GL_CULL_FACE);
+            glEnable(GL_DEPTH_TEST);
 
-        model = Matrix_Translate(80.0f, 1.0f, 110.0f)
-              * Matrix_Scale(7.0f, 7.0f, 7.0f)
-              * Matrix_Rotate_Y(M_PI/3);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, ROCK);
-        DrawVirtualObject("the_rock");
+            //////////////////////////////////////////////////////////////////////////
 
-        model = Matrix_Translate(110.0f, 0.5f, 90.0f)
-              * Matrix_Scale(12.0f, 12.0f, 9.0f)
-              * Matrix_Rotate_Y(M_PI/2);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, ROCK);
-        DrawVirtualObject("the_rock");
+            /////////////////// NAVE /////////////////////////////////////////////////
 
-        model = Matrix_Translate(-90.0f, 1.0f, -110.0f)
-              * Matrix_Scale(12.0f, 5.0f, 7.0f);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, ROCK);
-        DrawVirtualObject("the_rock");
-
-        model = Matrix_Translate(-110.0f, 2.0f, -100.0f)
-              * Matrix_Scale(5.0f, 5.0f, 5.0f)
-              * Matrix_Rotate_Y(M_PI/2);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, ROCK);
-        DrawVirtualObject("the_rock");
-
-        model = Matrix_Translate(-90.0f, 1.0f, 110.0f)
-              * Matrix_Scale(12.0f, 5.0f, 7.0f);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, ROCK);
-        DrawVirtualObject("the_rock");
-
-        model = Matrix_Translate(-110.0f, 2.0f, 100.0f)
-              * Matrix_Scale(5.0f, 15.0f, 5.0f)
-              * Matrix_Rotate_Y(M_PI/2);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, ROCK);
-        DrawVirtualObject("the_rock");
-
-        model = Matrix_Translate(75.0f, 0.0f, -90.0f)
-              * Matrix_Scale(12.0f, 12.0f, 12.0f)
-              * Matrix_Rotate_X(M_PI/2);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, ROCK);
-        DrawVirtualObject("the_rock");
-
-        model = Matrix_Translate(100.0f, 1.0f, -75.0f)
-              * Matrix_Scale(6.0f, 6.0f, 6.0f)
-              * Matrix_Rotate_Y(M_PI);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, ROCK);
-        DrawVirtualObject("the_rock");
-
-        model = Matrix_Translate(82.0f, 2.0f, -110.0f)
-              * Matrix_Scale(9.0f, 9.0f, 9.0f)
-              * Matrix_Rotate_Y(M_PI);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, ROCK);
-        DrawVirtualObject("the_rock");
-
-        model = Matrix_Translate(120.0f, 5.0f, -90.0f)
-              * Matrix_Scale(15.0f, 15.0f, 15.0f)
-              * Matrix_Rotate_Z(M_PI/2);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, ROCK);
-        DrawVirtualObject("the_rock");
-
-        model = Matrix_Translate(105.0f, 3.0f, -110.0f)
-              * Matrix_Scale(10.0f, 10.0f, 10.0f)
-              * Matrix_Rotate_Y(M_PI/2)
-              * Matrix_Rotate_X(M_PI)
-              * Matrix_Rotate_Z(M_PI/2);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, ROCK);
-        DrawVirtualObject("the_rock");
-
-        //////////////////////////////////////////////////////////////////////////
-
-        /////////////////// NAVE /////////////////////////////////////////////////
-
-        model = Matrix_Translate(spaceship.position.x, spaceship.position.y, spaceship.position.z)
-              * Matrix_Scale(5.0f, 5.0f, 5.0f)
-              * Matrix_Rotate_Y(3.141592f*0.75f);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, SPACESHIP);
-        DrawVirtualObject("the_ship");
-
-        //////////////////////////////////////////////////////////////////////////
-
-        /////////////////// MORRO ////////////////////////////////////////////////
-
-        model = Matrix_Translate(mount_position.x, mount_position.y, mount_position.z)
-              * Matrix_Scale(20.0f, 20.0f, 20.0f);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, MOUNT);
-        DrawVirtualObject("the_mount");
-
-        //////////////////////////////////////////////////////////////////////////
-
-        /////////////////// PEDAÇO DA NAVE ///////////////////////////////////////
-
-        for(int i = 0; i < 5; i++){
-            if(piece[i].collected == false){
-                model = Matrix_Translate(piece[i].position.x, piece[i].position.y, piece[i].position.z)
-                      * Matrix_Scale(0.4f, 0.4f, 0.4f)
-                      * Matrix_Rotate_Y(fmod(prev_time, piece[i].angle));
-                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-                glUniform1i(g_object_id_uniform, PIECE);
-                DrawVirtualObject("the_piece");
-            }
-
-        }
-
-        //////////////////////////////////////////////////////////////////////////
-
-        /////////////////// CAPSULAS /////////////////////////////////////////////
-
-        for (int i = 0; i < 3; i++){
-            model = Matrix_Translate(capsule[i].position.x, capsule[i].position.y, capsule[i].position.z)
-                  * Matrix_Scale(capsule[i].radius, capsule[i].radius, capsule[i].radius)
-                  * Matrix_Rotate_Y(fmod(prev_time, capsule[i].angle));
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, CAPSULE);
-        DrawVirtualObject("the_capsule");
-        DrawVirtualObject("Cylinder.011_Cylinder.022");
-        DrawVirtualObject("Cylinder.008_Cylinder.021");
-        DrawVirtualObject("Cylinder.005_Cylinder.010");
-        DrawVirtualObject("Cylinder.004_Cylinder.009");
-        }
-
-
-        //////////////////////////////////////////////////////////////////////////
-
-        /////////////////// ARVORES ///////////////////////////////////////////////
-
-        model = Matrix_Translate(tree_position.x, tree_position.y, tree_position.z)
-              * Matrix_Scale(10.0f, 10.0f, 10.0f);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, TREE);
-        DrawVirtualObject("the_tree");
-
-        //////////////////////////////////////////////////////////////////////////
-
-        /////////////////// BOSS /////////////////////////////////////////////////
-
-        if(boss.is_alive == true) {
-            model = Matrix_Translate(boss.position.x, boss.position.y, boss.position.z)
-              * Matrix_Scale(10.0f, 10.0f, 10.0f)
-              * Matrix_Rotate_Y(boss.angle);
-            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-            glUniform1i(g_object_id_uniform, BOSS);
-            DrawVirtualObject("the_boss");
-        }
-
-        //////////////////////////////////////////////////////////////////////////
-
-        /////////////////// ARMA /////////////////////////////////////////////////
-
-        if (!lookat_boss && !win && !gameOver)
-        {
-            model = Matrix_Translate(0.06f, -0.115f, -0.2f)
-                  * Matrix_Scale(0.1f, 0.1f, 0.1f)
-                  * Matrix_Rotate_Y(M_PI);
+            model = Matrix_Translate(0.0f, -2.0f, -15.0f)
+                  * Matrix_Scale(5.0f, 5.0f, 5.0f)
+                  * Matrix_Rotate_Y(M_PI/2);
             view = Matrix_Identity();
             glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
             glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-            glUniform1i(g_object_id_uniform, GUN);
-            DrawVirtualObject("the_gun");
+            glUniform1i(g_object_id_uniform, SPACESHIP);
+            DrawVirtualObject("the_ship");
             view = Matrix_Camera_View(camera_position_c, camera_view_vector, camera_up_vector);
             glUniformMatrix4fv(g_view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
-        }
 
-        //////////////////////////////////////////////////////////////////////////
-
-        /////////////////// BEZIER ///////////////////////////////////////////////
-
-        // Calcula a posição atual do monstro na curva de Bezier
-        if (ciclo_voo)
-            fly_position = CalculaBezier(t, ponto_controle_1, ponto_controle_2, ponto_controle_3, ponto_controle_4);
-        else
-            fly_position = CalculaBezier(t, ponto_controle_5, ponto_controle_6, ponto_controle_7, ponto_controle_8);
-
-        fly_monster_angle = -atan2(fly_position.z - player.position.z, fly_position.x - player.position.x);
-
-        model = Matrix_Translate(fly_position.x, fly_position.y, fly_position.z)
-              * Matrix_Rotate_Y(fly_monster_angle);
-        glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(g_object_id_uniform, FLYMONSTER);
-        DrawVirtualObject("the_flymonster");
-
-        // Incremento para que o objeto se mova na curva
-        t += 0.008f;
-
-        // Resete o parâmetro de interpolação para reiniciar o movimento ao completar a curva
-        if (t > 1.0f)
-        {
-            t = 0.0f;
-            ciclo_voo = !ciclo_voo;
         }
 
         //////////////////////////////////////////////////////////////////////////
@@ -2160,6 +2535,7 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage15"), 15);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage16"), 16);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage17"), 17);
+    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage18"), 18);
 
     glUseProgram(0);
 }
