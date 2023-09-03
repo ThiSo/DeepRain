@@ -262,7 +262,7 @@ class Monster {
         glm::vec4 hitbox;
         bool is_alive = true;
         bool proximo = false;
-        float speed = 2.0f;
+        float speed = 2.5f;
         float angle = 0.0f;
         float radius = 1.5f;
         int lifes = 3;
@@ -708,9 +708,9 @@ int main(int argc, char* argv[])
 
     std::vector<glm::vec3> posVectorCapsule;
 
-    glm::vec3 capsule_0_position = glm::vec3(-fmod(rand(),100.0f), -0.5f, fmod(rand(),100.0f));
-    glm::vec3 capsule_1_position = glm::vec3(fmod(rand(),100.0f), -0.5f, -fmod(rand(),100.0f));
-    glm::vec3 capsule_2_position = glm::vec3(-fmod(rand(),100.0f), -0.5f, fmod(rand(),100.0f));
+    glm::vec3 capsule_0_position = glm::vec3(0.0f, -0.5f, 20.0f);
+    glm::vec3 capsule_1_position = glm::vec3(-57.0f, -0.5f, -95.7f);
+    glm::vec3 capsule_2_position = glm::vec3(78.3f, -0.5f, -40.2f);
 
     posVectorCapsule.push_back(capsule_0_position);
     posVectorCapsule.push_back(capsule_1_position);
@@ -873,7 +873,7 @@ int main(int argc, char* argv[])
         {
             // afasta a imagem lentamente do astronauta falecido
             camera_view_vector = death_position - camera_position_c;
-            camera_position_c -= camera_view_vector * (0.01f * player.speed) * delta_t;
+            camera_position_c -= camera_view_vector * 0.1f * delta_t;
         }
 
         // Movimentação da nave na tela de win
@@ -1146,7 +1146,7 @@ int main(int argc, char* argv[])
 
         /////////////////// MOVIMENTAÇÃO MONSTROS ////////////////////////////////
 
-        if (lookat_boss == false && !boss.is_alive)
+        if (lookat_boss == false)
         {
            for (size_t i = 0; i < monster.size(); ++i) {
 
@@ -1154,7 +1154,7 @@ int main(int argc, char* argv[])
                 {
 
                     // Checa se o jogador se aproximou o suficiente do monstro para que este o note
-                    if (length(player.position - monster[i].position) < 30.0f)
+                    if (length(player.position - monster[i].position) < 50.0f)
                         monster[i].proximo = true;
                     else
                         monster[i].proximo = false;
@@ -1180,22 +1180,6 @@ int main(int argc, char* argv[])
                         monster[i].hitbox = monster[i].position;
 
                     }
-                }
-            }
-        }
-        else if (lookat_boss == false && boss.is_alive)
-        {
-            for (size_t i = 0; i < monster.size(); ++i)
-            {
-
-                if (monster[i].is_alive)
-                {
-                    monster_direction = (monster[i].position - spaceship.position) / norm(monster[i].position - spaceship.position);
-                    monster[i].angle = -atan2(monster_direction.z, monster_direction.x);
-                    monster[i].position.x -= 5 * monster_direction.x * delta_t;
-                    monster[i].position.z -= 5 * monster_direction.z * delta_t;
-
-                    monster[i].hitbox = monster[i].position;
                 }
             }
         }
@@ -2101,11 +2085,6 @@ int main(int argc, char* argv[])
                 monster_spawn_rate = 5;
                 points_per_kill = 250;
             }
-            if((float)glfwGetTime() >= 300.0f)
-            {
-                monster_spawn_rate = 6;
-                points_per_kill = 300;
-            }
 
             if(monster_spawn_rate == 1 && !boss.is_alive)
             {
@@ -2211,30 +2190,6 @@ int main(int argc, char* argv[])
                 }
             }
 
-            if(monster_spawn_rate == 6 && !boss.is_alive)
-            {
-                if((float)glfwGetTime() >= last_monster_spawn_time + 5.0f)
-                {
-                    for(int i = 0; i < 3; i++)
-                    {
-                    Monster new_monster;
-
-                    new_monster.position = glm::vec4(-fmod(rand(),100.0f), 0.5f, fmod(rand(),100.0f), 1.0f);
-                    new_monster.hitbox = new_monster.position;
-                    monster.push_back(new_monster);
-                    }
-
-                    for(int i = 0; i < 3; i++)
-                    {
-                    Monster new_monster;
-
-                    new_monster.position = glm::vec4(fmod(rand(),100.0f), 0.5f, -fmod(rand(),100.0f), 1.0f);
-                    new_monster.hitbox = new_monster.position;
-                    monster.push_back(new_monster);
-                    }
-                    last_monster_spawn_time = (float)glfwGetTime();
-                }
-            }
 
             // Imprimimos na tela a quantidade de tiros que o jogador possui
             TextRendering_ShowBullets(window);
