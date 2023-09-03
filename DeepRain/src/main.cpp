@@ -914,7 +914,7 @@ int main(int argc, char* argv[])
         {
             movementVec = camera_position_c - boss.position;
             movementVec = movementVec / norm(movementVec);
-            camera_position_c -= movementVec * (10.0f * player.speed) * delta_t;
+            camera_position_c -= movementVec * 150.0f * delta_t;
         }
 
         if (lookat_boss && going_to_boss && ColisaoPontoEsfera(camera_position_c, boss.position, boss.radius))
@@ -928,7 +928,7 @@ int main(int argc, char* argv[])
         {
             movementVec = boss.position - prev_pos;
             movementVec = movementVec / norm(movementVec);
-            camera_position_c -= movementVec * (10.0f * player.speed) * delta_t;
+            camera_position_c -= movementVec * 150.0f * delta_t;
         }
 
         if (lookat_boss && back_to_prev_pos && ColisaoPontoEsfera(camera_position_c, prev_pos, 1.0f))
@@ -983,6 +983,7 @@ int main(int argc, char* argv[])
         {
             player.is_jumping = true;
             player.is_descending = false;
+            lock = true;
         }
 
         if (jump == false && !lookat_boss && !win && !gameOver)
@@ -3111,11 +3112,11 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
         {
             jump = true;
         }
-        else if(action == GLFW_RELEASE && lock == false)
+        else if(action == GLFW_RELEASE && lock == true)
         {
             jump = false;
         }
-        else if(action == GLFW_REPEAT)
+        else if(action == GLFW_REPEAT && lock == true)
         {
             jump = false;
         }
