@@ -22,9 +22,9 @@ out vec2 texcoords;
 out vec4 color_v;
 
 uniform int object_id;
-uniform sampler2D TextureImage12; //TREE
+uniform sampler2D TextureImage11; //TREE
 
-#define TREE 12
+#define TREE 11
 
 void main()
 {
@@ -84,7 +84,7 @@ void main()
         float p_U = texcoords.x;
         float p_V = texcoords.y;
 
-        vec3 Kd0 = texture(TextureImage12, vec2(p_U, p_V)).rgb;
+        vec3 Kd0 = texture(TextureImage11, vec2(p_U, p_V)).rgb;
 
         vec3 I = vec3(1.0, 1.0, 1.0);
         vec3 Ia = vec3(0.2, 0.2, 0.2);

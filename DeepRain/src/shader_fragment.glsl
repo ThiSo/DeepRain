@@ -23,21 +23,20 @@ uniform mat4 projection;
 #define SKYBOX1 0
 #define BUNNY  1
 #define PLANE  2
-#define LIBERTY  3
-#define MONSTER 4
-#define ROCK 5
-#define FLYMONSTER 6
-#define SPACESHIP 7
-#define MOUNT 8
-#define BULLETS 9
-#define HITBOX 10
-#define PIECE 11
-#define TREE 12
-#define BOSS 13
-#define GUN 14
-#define CAPSULE 15
-#define ASTRONAUT 16
-#define SKYBOX2 17
+#define MONSTER 3
+#define ROCK 4
+#define FLYMONSTER 5
+#define SPACESHIP 6
+#define MOUNT 7
+#define BULLETS 8
+#define HITBOX 9
+#define PIECE 10
+#define TREE 11
+#define BOSS 12
+#define GUN 13
+#define CAPSULE 14
+#define ASTRONAUT 15
+#define SKYBOX2 16
 
 uniform int object_id;
 
@@ -49,22 +48,21 @@ uniform vec4 bbox_max;
 uniform sampler2D TextureImage0; //MAP
 uniform sampler2D TextureImage1; //LIGHTS MAP
 uniform sampler2D TextureImage2; //MONSTER
-uniform sampler2D TextureImage3; //STATUE
-uniform sampler2D TextureImage4; //GRASS
-uniform sampler2D TextureImage5; //SKY
-uniform sampler2D TextureImage6; //ROCK
-uniform sampler2D TextureImage7; //FLYMONSTER
-uniform sampler2D TextureImage8; //SPACESHIP
-uniform sampler2D TextureImage9; //MOUNT
-uniform sampler2D TextureImage10; //BULLETS
-uniform sampler2D TextureImage11; //PIECE
-uniform sampler2D TextureImage12; //TREE
-uniform sampler2D TextureImage13; //BOSS BODY
-uniform sampler2D TextureImage14; //BOSS METAL
-uniform sampler2D TextureImage15; //GUN
-uniform sampler2D TextureImage16; //CAPSULE1
-uniform sampler2D TextureImage17; //ASTRONAUT
-uniform sampler2D TextureImage18; //UNIVERSE
+uniform sampler2D TextureImage3; //GRASS
+uniform sampler2D TextureImage4; //SKY
+uniform sampler2D TextureImage5; //ROCK
+uniform sampler2D TextureImage6; //FLYMONSTES
+uniform sampler2D TextureImage7; //SPACESHIP
+uniform sampler2D TextureImage8; //MOUNT
+uniform sampler2D TextureImage9; //BULLETS
+uniform sampler2D TextureImage10; //PIECE
+uniform sampler2D TextureImage11; //TREE
+uniform sampler2D TextureImage12; //BOSS BODY
+uniform sampler2D TextureImage13; //BOSS METAL
+uniform sampler2D TextureImage14; //GUN
+uniform sampler2D TextureImage15; //CAPSULE1
+uniform sampler2D TextureImage16; //ASTRONAUT
+uniform sampler2D TextureImage17; //UNIVERSE
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec4 color;
@@ -143,12 +141,11 @@ void main()
         p_V = (position_model.y - miny)/(maxy - miny);
 
     }
-    else if ( object_id == LIBERTY   || object_id == MONSTER    ||
-              object_id == ROCK      || object_id == FLYMONSTER ||
-              object_id == ASTRONAUT || object_id == MOUNT      ||
-              object_id == PIECE     || object_id == BOSS       ||
-              object_id == SPACESHIP || object_id == CAPSULE    ||
-              object_id == GUN)
+    else if ( object_id == MONSTER    || object_id == ROCK      ||
+              object_id == FLYMONSTER || object_id == ASTRONAUT ||
+              object_id == MOUNT      || object_id == PIECE     ||
+              object_id == BOSS       || object_id == SPACESHIP ||
+              object_id == CAPSULE    || object_id == GUN)
     {
         // Coordenadas de textura da estatua, monstro ou pedra, obtidas dos arquivos OBJ.
         p_U = texcoords.x;
@@ -177,66 +174,62 @@ void main()
     {
         Kd0 = texture(TextureImage2, vec2(p_U, p_V)).rgb;
     }
-    else if (object_id == LIBERTY)
+    else if (object_id == PLANE)
     {
         Kd0 = texture(TextureImage3, vec2(p_U, p_V)).rgb;
     }
-    else if (object_id == PLANE)
+    else if (object_id == SKYBOX1 || object_id == HITBOX)
     {
         Kd0 = texture(TextureImage4, vec2(p_U, p_V)).rgb;
     }
-    else if (object_id == SKYBOX1 || object_id == HITBOX)
+    else if (object_id == ROCK)
     {
         Kd0 = texture(TextureImage5, vec2(p_U, p_V)).rgb;
     }
-    else if (object_id == ROCK)
+    else if (object_id == FLYMONSTER)
     {
         Kd0 = texture(TextureImage6, vec2(p_U, p_V)).rgb;
     }
-    else if (object_id == FLYMONSTER)
+    else if (object_id == SPACESHIP)
     {
         Kd0 = texture(TextureImage7, vec2(p_U, p_V)).rgb;
     }
-    else if (object_id == SPACESHIP)
+    else if (object_id == MOUNT)
     {
         Kd0 = texture(TextureImage8, vec2(p_U, p_V)).rgb;
     }
-    else if (object_id == MOUNT)
+    else if (object_id == BULLETS)
     {
         Kd0 = texture(TextureImage9, vec2(p_U, p_V)).rgb;
     }
-    else if (object_id == BULLETS)
+    else if (object_id == PIECE)
     {
         Kd0 = texture(TextureImage10, vec2(p_U, p_V)).rgb;
     }
-    else if (object_id == PIECE)
-    {
-        Kd0 = texture(TextureImage11, vec2(p_U, p_V)).rgb;
-    }
     //else if (object_id == TREE)
     //{
-    //    Kd0 = texture(TextureImage12, vec2(p_U, p_V)).rgb;
+    //    Kd0 = texture(TextureImage11, vec2(p_U, p_V)).rgb;
     //}
     else if (object_id == BOSS)
     {
-        Kd0 = texture(TextureImage13, vec2(p_U, p_V)).rgb;
-        Kd1 = texture(TextureImage14, vec2(p_U, p_V)).rgb;
+        Kd0 = texture(TextureImage12, vec2(p_U, p_V)).rgb;
+        Kd1 = texture(TextureImage13, vec2(p_U, p_V)).rgb;
     }
     else if (object_id == GUN)
     {
-        Kd0 = texture(TextureImage15, vec2(p_U, p_V)).rgb;
+        Kd0 = texture(TextureImage14, vec2(p_U, p_V)).rgb;
     }
     else if (object_id == CAPSULE)
     {
-        Kd0 = texture(TextureImage16, vec2(p_U, p_V)).rgb;
+        Kd0 = texture(TextureImage15, vec2(p_U, p_V)).rgb;
     }
     else if (object_id == ASTRONAUT)
     {
-        Kd0 = texture(TextureImage17, vec2(p_U, p_V)).rgb;
+        Kd0 = texture(TextureImage16, vec2(p_U, p_V)).rgb;
     }
     else if (object_id == SKYBOX2)
     {
-        Kd0 = texture(TextureImage18, vec2(p_U, p_V)).rgb;
+        Kd0 = texture(TextureImage17, vec2(p_U, p_V)).rgb;
     }
 
     // Espectro da fonte de iluminação

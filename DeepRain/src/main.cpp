@@ -54,21 +54,20 @@
 #define SKYBOX1 0
 #define BUNNY  1
 #define PLANE  2
-#define LIBERTY 3
-#define MONSTER 4
-#define ROCK 5
-#define FLYMONSTER 6
-#define SPACESHIP 7
-#define MOUNT 8
-#define BULLETS 9
-#define HITBOX 10
-#define PIECE 11
-#define TREE 12
-#define BOSS 13
-#define GUN 14
-#define CAPSULE 15
-#define ASTRONAUT 16
-#define SKYBOX2 17
+#define MONSTER 3
+#define ROCK 4
+#define FLYMONSTER 5
+#define SPACESHIP 6
+#define MOUNT 7
+#define BULLETS 8
+#define HITBOX 9
+#define PIECE 10
+#define TREE 11
+#define BOSS 12
+#define GUN 13
+#define CAPSULE 14
+#define ASTRONAUT 15
+#define SKYBOX2 16
 
 // Prints para debugging
 #include "iostream"
@@ -321,6 +320,15 @@ class Capsule {
 
 std::vector<Capsule> capsule;
 
+// Classe / Vector para as arvores ////////////////////////
+
+class Tree {
+    public:
+        glm::vec4 position;
+};
+
+std::vector<Tree> tree;
+
 // def do vetor de indices
 typedef GLubyte index_type;
 
@@ -481,22 +489,21 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/tc-earth_daymap_surface.jpg");      // TextureImage0
     LoadTextureImage("../../data/tc-earth_nightmap_citylights.gif"); // TextureImage1
     LoadTextureImage("../../data/tc-monster.jpg");                   // TextureImage2
-    LoadTextureImage("../../data/tc-liberty.png");                   // TextureImage3
-    LoadTextureImage("../../data/tc-grass.jpg");                     // TextureImage4
-    LoadTextureImage("../../data/tc-skydome.jpg");                   // TextureImage5
-    LoadTextureImage("../../data/tc-rock.jpg");                      // TextureImage6
-    LoadTextureImage("../../data/tc-flymonster.jpg");                // TextureImage7
-    LoadTextureImage("../../data/tc-spaceship.jpg");                 // TextureImage8
-    LoadTextureImage("../../data/tc-mount.jpg");                     // TextureImage9
-    LoadTextureImage("../../data/tc-bullet.jpg");                    // TextureImage10
-    LoadTextureImage("../../data/tc-piece.png");                     // TextureImage11
-    LoadTextureImage("../../data/tc-tree.jpg");                      // TextureImage12
-    LoadTextureImage("../../data/tc-boss_metal.jpg");                // TextureImage13
-    LoadTextureImage("../../data/tc-boss_body.jpg");                 // TextureImage14
-    LoadTextureImage("../../data/tc-gun.jpg");                       // TextureImage15
-    LoadTextureImage("../../data/tc-capsule.png");                   // TextureImage16
-    LoadTextureImage("../../data/tc-astronaut.jpg");                 // TextureImage17
-    LoadTextureImage("../../data/tc-universe.jpg");                  // TextureImage18
+    LoadTextureImage("../../data/tc-grass.jpg");                     // TextureImage3
+    LoadTextureImage("../../data/tc-skydome.jpg");                   // TextureImage4
+    LoadTextureImage("../../data/tc-rock.jpg");                      // TextureImage5
+    LoadTextureImage("../../data/tc-flymonster.jpg");                // TextureImage6
+    LoadTextureImage("../../data/tc-spaceship.jpg");                 // TextureImage7
+    LoadTextureImage("../../data/tc-mount.jpg");                     // TextureImage8
+    LoadTextureImage("../../data/tc-bullet.jpg");                    // TextureImage9
+    LoadTextureImage("../../data/tc-piece.png");                     // TextureImage10
+    LoadTextureImage("../../data/tc-tree.jpg");                      // TextureImage11
+    LoadTextureImage("../../data/tc-boss_metal.jpg");                // TextureImage12
+    LoadTextureImage("../../data/tc-boss_body.jpg");                 // TextureImage13
+    LoadTextureImage("../../data/tc-gun.jpg");                       // TextureImage14
+    LoadTextureImage("../../data/tc-capsule.png");                   // TextureImage15
+    LoadTextureImage("../../data/tc-astronaut.jpg");                 // TextureImage16
+    LoadTextureImage("../../data/tc-universe.jpg");                  // TextureImage17
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -510,10 +517,6 @@ int main(int argc, char* argv[])
     ObjModel planemodel("../../data/plane.obj");
     ComputeNormals(&planemodel);
     BuildTrianglesAndAddToVirtualScene(&planemodel);
-
-    ObjModel libertymodel("../../data/liberty.obj");
-    ComputeNormals(&libertymodel);
-    BuildTrianglesAndAddToVirtualScene(&libertymodel);
 
     ObjModel monstermodel("../../data/monster.obj");
     ComputeNormals(&monstermodel);
@@ -627,7 +630,6 @@ int main(int argc, char* argv[])
     float y_win = 0.0f;
     float z_win = -15.0f;
     float theta = M_PI/2;
-    float var; // Usado para marcar de quanto em quanto tempo a camera deve alterar seu angulo de rotação
 
     float t = 0.0f;     // Parâmetro de interpolação da curva de beziér
 
@@ -728,6 +730,118 @@ int main(int argc, char* argv[])
 
     ///////////////////////////////////////////////////////////////////////
 
+    // Inicialização das arvores //////////////////////////////////////////
+
+    std::vector<glm::vec3> posVectorTree;
+
+    glm::vec3 tree_position = glm::vec3(0.0f, 8.0f, -115.0f);
+    glm::vec3 tree_2_position = glm::vec3(10.0f, 10.0f, -106.0f);
+    glm::vec3 tree_3_position = glm::vec3(-10.0f, 13.0f, -106.0f);
+    glm::vec3 tree_4_position = glm::vec3(90.0f, 5.0f, -21.0f);
+    glm::vec3 tree_5_position = glm::vec3(98.0f, 5.0f, -7.0f);
+    glm::vec3 tree_6_position = glm::vec3(95.0f, 5.0f, 25.0f);
+    glm::vec3 tree_7_position = glm::vec3(93.0f, 5.0f, -29.0f);
+    glm::vec3 tree_8_position = glm::vec3(50.0f, 5.0f, -24.0f);
+    glm::vec3 tree_9_position = glm::vec3(48.0f, 5.0f, -81.0f);
+    glm::vec3 tree_10_position = glm::vec3(-52.0f, 5.0f, -72.0f);
+    glm::vec3 tree_11_position = glm::vec3(-67.0f, 5.0f, -82.0f);
+    glm::vec3 tree_12_position = glm::vec3(-49.0f, 5.0f, -37.0f);
+    glm::vec3 tree_13_position = glm::vec3(-45.0f, 5.0f, -10.0f);
+    glm::vec3 tree_14_position = glm::vec3(-12.0f, 5.0f, -19.0f);
+    glm::vec3 tree_15_position = glm::vec3(104.0f, 5.0f, 23.0f);
+    glm::vec3 tree_16_position = glm::vec3(97.0f, 5.0f, 38.0f);
+    glm::vec3 tree_17_position = glm::vec3(75.0f, 5.0f, 62.0f);
+    glm::vec3 tree_18_position = glm::vec3(60.0f, 5.0f, 86.0f);
+    glm::vec3 tree_19_position = glm::vec3(36.0f, 5.0f, 94.0f);
+    glm::vec3 tree_20_position = glm::vec3(15.0f, 5.0f, 80.0f);
+    glm::vec3 tree_21_position = glm::vec3(-12.0f, 5.0f, 56.0f);
+    glm::vec3 tree_22_position = glm::vec3(-25.0f, 5.0f, 10.0f);
+    glm::vec3 tree_23_position = glm::vec3(-15.0f, 5.0f, -10.0f);
+    glm::vec3 tree_24_position = glm::vec3(12.0f, 5.0f, -37.0f);
+    glm::vec3 tree_25_position = glm::vec3(27.0f, 5.0f, -55.0f);
+    glm::vec3 tree_26_position = glm::vec3(1.0f, 5.0f, 104.0f);
+    glm::vec3 tree_27_position = glm::vec3(-10.0f, 5.0f, 100.0f);
+    glm::vec3 tree_28_position = glm::vec3(-17.0f, 5.0f, 111.0f);
+    glm::vec3 tree_29_position = glm::vec3(-27.0f, 5.0f, 96.0f);
+    glm::vec3 tree_30_position = glm::vec3(-44.0f, 5.0f, 62.0f);
+    glm::vec3 tree_31_position = glm::vec3(-50.0f, 5.0f, 77.0f);
+    glm::vec3 tree_32_position = glm::vec3(-81.0f, 5.0f, 34.0f);
+    glm::vec3 tree_33_position = glm::vec3(-95.0f, 5.0f, -16.0f);
+    glm::vec3 tree_34_position = glm::vec3(-115.0f, 5.0f, -9.0f);
+    glm::vec3 tree_35_position = glm::vec3(-65.0f, 5.0f, 12.0f);
+    glm::vec3 tree_36_position = glm::vec3(-37.0f, 5.0f, 42.0f);
+    glm::vec3 tree_37_position = glm::vec3(-26.0f, 5.0f, -61.0f);
+    glm::vec3 tree_38_position = glm::vec3(-53.0f, 5.0f, 48.0f);
+    glm::vec3 tree_39_position = glm::vec3(46.0f, 5.0f, 115.0f);
+    glm::vec3 tree_40_position = glm::vec3(20.0f, 5.0f, 110.0f);
+    glm::vec3 tree_41_position = glm::vec3(32.0f, 5.0f, 70.0f);
+    glm::vec3 tree_42_position = glm::vec3(53.0f, 5.0f, 63.0f);
+    glm::vec3 tree_43_position = glm::vec3(27.0f, 5.0f, 27.0f);
+    glm::vec3 tree_44_position = glm::vec3(-69.0f, 5.0f, -31.0f);
+    glm::vec3 tree_45_position = glm::vec3(-59.0f, 5.0f, -59.0f);
+    glm::vec3 tree_46_position = glm::vec3(-92.0f, 5.0f, -68.0f);
+    glm::vec3 tree_47_position = glm::vec3(53.0f, 5.0f, -59.0f);
+    glm::vec3 tree_48_position = glm::vec3(71.0f, 5.0f, -70.0f);
+
+
+    posVectorTree.push_back(tree_position);
+    posVectorTree.push_back(tree_2_position);
+    posVectorTree.push_back(tree_3_position);
+    posVectorTree.push_back(tree_4_position);
+    posVectorTree.push_back(tree_5_position);
+    posVectorTree.push_back(tree_6_position);
+    posVectorTree.push_back(tree_7_position);
+    posVectorTree.push_back(tree_8_position);
+    posVectorTree.push_back(tree_9_position);
+    posVectorTree.push_back(tree_10_position);
+    posVectorTree.push_back(tree_11_position);
+    posVectorTree.push_back(tree_12_position);
+    posVectorTree.push_back(tree_13_position);
+    posVectorTree.push_back(tree_14_position);
+    posVectorTree.push_back(tree_15_position);
+    posVectorTree.push_back(tree_16_position);
+    posVectorTree.push_back(tree_17_position);
+    posVectorTree.push_back(tree_18_position);
+    posVectorTree.push_back(tree_19_position);
+    posVectorTree.push_back(tree_20_position);
+    posVectorTree.push_back(tree_21_position);
+    posVectorTree.push_back(tree_22_position);
+    posVectorTree.push_back(tree_23_position);
+    posVectorTree.push_back(tree_24_position);
+    posVectorTree.push_back(tree_25_position);
+    posVectorTree.push_back(tree_26_position);
+    posVectorTree.push_back(tree_27_position);
+    posVectorTree.push_back(tree_28_position);
+    posVectorTree.push_back(tree_29_position);
+    posVectorTree.push_back(tree_30_position);
+    posVectorTree.push_back(tree_31_position);
+    posVectorTree.push_back(tree_32_position);
+    posVectorTree.push_back(tree_33_position);
+    posVectorTree.push_back(tree_34_position);
+    posVectorTree.push_back(tree_35_position);
+    posVectorTree.push_back(tree_36_position);
+    posVectorTree.push_back(tree_37_position);
+    posVectorTree.push_back(tree_38_position);
+    posVectorTree.push_back(tree_39_position);
+    posVectorTree.push_back(tree_40_position);
+    posVectorTree.push_back(tree_41_position);
+    posVectorTree.push_back(tree_42_position);
+    posVectorTree.push_back(tree_43_position);
+    posVectorTree.push_back(tree_44_position);
+    posVectorTree.push_back(tree_45_position);
+    posVectorTree.push_back(tree_46_position);
+    posVectorTree.push_back(tree_47_position);
+    posVectorTree.push_back(tree_48_position);
+
+    for(const glm::vec3& tree_position : posVectorTree) {
+        Tree new_tree;
+
+        new_tree.position = glm::vec4(tree_position.x, tree_position.y, tree_position.z, 1.0f);
+        tree.push_back(new_tree);
+    }
+
+    ///////////////////////////////////////////////////////////////////////
+
     // Inicialização do boss //////////////////////////////////////////////
 
     glm::vec3 boss_position = glm::vec3(100.0f, 11.0f, -100.0f);
@@ -748,12 +862,6 @@ int main(int argc, char* argv[])
     // Inicialização dos outros objetos ///////////////////////////////////
 
     glm::vec4 bunny_position = glm::vec4(55.0f, 28.125f, 30.0f, 1.0f);
-
-    glm::vec3 statue_position = glm::vec3(-60.0f, 10.0f, -60.0f);
-
-    glm::vec3 tree_position = glm::vec3(0.0f, 8.0f, -115.0f);
-    glm::vec3 tree_2_position = glm::vec3(10.0f, 10.0f, -106.0f);
-    glm::vec3 tree_3_position = glm::vec3(-10.0f, 13.0f, -106.0f);
 
     glm::vec3 mount_position = glm::vec3(55.0f, 18.0f, 30.0f);
     glm::vec3 mount_max = glm::vec3(75.0f, 10.0f, 45.0f);
@@ -883,7 +991,6 @@ int main(int argc, char* argv[])
             camera_view_vector = spaceship_position - camera_position_c;
             movementVec = glm::vec4(-1.0f, 0.0f, 1.0f, 0.0f);
             spaceship.position -= movementVec * 10.0f * delta_t;
-            var = (float)glfwGetTime();
         }
 
         if(win && !tp_end && (float)glfwGetTime() > cutscene_win_time + 2.0f)
@@ -892,11 +999,8 @@ int main(int argc, char* argv[])
             x_win = r_win * cos(theta);
             z_win = r_win * sin(theta);
 
-            if ((float)glfwGetTime() >= var + 0.02f)
-            {
-                var = (float)glfwGetTime();
-                theta = theta + 0.1f;
-            }
+            theta += 2.0f * delta_t;
+
             if (theta >= M_PI*2)
             {
                 theta = 0;
@@ -983,7 +1087,6 @@ int main(int argc, char* argv[])
         {
             player.is_jumping = true;
             player.is_descending = false;
-            lock = true;
         }
 
         if (jump == false && !lookat_boss && !win && !gameOver)
@@ -1144,7 +1247,6 @@ int main(int argc, char* argv[])
         camera_position_c = player.position;
 
         //////////////////////////////////////////////////////////////////////////
-
         /////////////////// MOVIMENTAÇÃO MONSTROS ////////////////////////////////
 
         if (lookat_boss == false)
@@ -1370,17 +1472,6 @@ int main(int argc, char* argv[])
 
             //////////////////////////////////////////////////////////////////////////
 
-            /////////////////// LIBERDADE ////////////////////////////////////////////
-
-            model = Matrix_Translate(statue_position.x, statue_position.y, statue_position.z)
-                  * Matrix_Scale(10.0f, 10.0f, 10.0f)
-                  * Matrix_Rotate_Y(3.141592f*0.75f);
-            glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-            glUniform1i(g_object_id_uniform, LIBERTY);
-            DrawVirtualObject("the_liberty");
-
-            //////////////////////////////////////////////////////////////////////////
-
             /////////////////// MONSTRO //////////////////////////////////////////////
 
             for (size_t i = 0; i < monster.size(); ++i) {
@@ -1571,25 +1662,34 @@ int main(int argc, char* argv[])
 
             /////////////////// ARVORES ///////////////////////////////////////////////
 
-            model = Matrix_Translate(tree_position.x, tree_position.y, tree_position.z)
+            model = Matrix_Translate(tree[0].position.x, tree[0].position.y, tree[0].position.z)
                   * Matrix_Scale(10.0f, 10.0f, 10.0f);
             glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
             glUniform1i(g_object_id_uniform, TREE);
             DrawVirtualObject("the_tree");
 
-            model = Matrix_Translate(tree_2_position.x, tree_2_position.y, tree_2_position.z)
+            model = Matrix_Translate(tree[1].position.x, tree[1].position.y, tree[1].position.z)
                   * Matrix_Scale(12.0f, 12.0f, 12.0f)
                   * Matrix_Rotate_Y(M_PI/2);
             glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
             glUniform1i(g_object_id_uniform, TREE);
             DrawVirtualObject("the_tree");
 
-            model = Matrix_Translate(tree_3_position.x, tree_3_position.y, tree_3_position.z)
+            model = Matrix_Translate(tree[2].position.x, tree[2].position.y, tree[2].position.z)
                   * Matrix_Scale(15.0f, 15.0f, 15.0f)
                   * Matrix_Rotate_Y(-M_PI/2);
             glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
             glUniform1i(g_object_id_uniform, TREE);
             DrawVirtualObject("the_tree");
+
+            for(int i = 3; i < 48; i++)
+            {
+                model = Matrix_Translate(tree[i].position.x, tree[i].position.y, tree[i].position.z)
+                  * Matrix_Scale(7.0f, 7.0f, 7.0f);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, TREE);
+                DrawVirtualObject("the_tree");
+            }
 
             //////////////////////////////////////////////////////////////////////////
 
@@ -1641,7 +1741,7 @@ int main(int argc, char* argv[])
             DrawVirtualObject("the_flymonster");
 
             // Incremento para que o objeto se mova na curva
-            t += 0.008f;
+            t += 0.8f * delta_t;
 
             // Resete o parâmetro de interpolação para reiniciar o movimento ao completar a curva
             if (t > 1.0f)
@@ -1711,17 +1811,6 @@ int main(int argc, char* argv[])
                 glUniform1i(g_object_id_uniform, BUNNY);
                 if (bunny_alive)
                     DrawVirtualObject("the_bunny");
-
-                //////////////////////////////////////////////////////////////////////////
-
-                /////////////////// LIBERDADE ////////////////////////////////////////////
-
-                model = Matrix_Translate(statue_position.x, statue_position.y, statue_position.z)
-                      * Matrix_Scale(10.0f, 10.0f, 10.0f)
-                      * Matrix_Rotate_Y(3.141592f*0.75f);
-                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-                glUniform1i(g_object_id_uniform, LIBERTY);
-                DrawVirtualObject("the_liberty");
 
                 //////////////////////////////////////////////////////////////////////////
 
@@ -1902,11 +1991,34 @@ int main(int argc, char* argv[])
 
                 /////////////////// ARVORES ///////////////////////////////////////////////
 
-                model = Matrix_Translate(tree_position.x, tree_position.y, tree_position.z)
+                model = Matrix_Translate(tree[0].position.x, tree[0].position.y, tree[0].position.z)
                       * Matrix_Scale(10.0f, 10.0f, 10.0f);
                 glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
                 glUniform1i(g_object_id_uniform, TREE);
                 DrawVirtualObject("the_tree");
+
+                model = Matrix_Translate(tree[1].position.x, tree[1].position.y, tree[1].position.z)
+                      * Matrix_Scale(12.0f, 12.0f, 12.0f)
+                      * Matrix_Rotate_Y(M_PI/2);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, TREE);
+                DrawVirtualObject("the_tree");
+
+                model = Matrix_Translate(tree[2].position.x, tree[2].position.y, tree[2].position.z)
+                      * Matrix_Scale(15.0f, 15.0f, 15.0f)
+                      * Matrix_Rotate_Y(-M_PI/2);
+                glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                glUniform1i(g_object_id_uniform, TREE);
+                DrawVirtualObject("the_tree");
+
+                for(int i = 3; i < 48; i++)
+                {
+                    model = Matrix_Translate(tree[i].position.x, tree[i].position.y, tree[i].position.z)
+                      * Matrix_Scale(7.0f, 7.0f, 7.0f);
+                    glUniformMatrix4fv(g_model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+                    glUniform1i(g_object_id_uniform, TREE);
+                    DrawVirtualObject("the_tree");
+                }
 
                 //////////////////////////////////////////////////////////////////////////
 
@@ -2539,7 +2651,6 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage15"), 15);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage16"), 16);
     glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage17"), 17);
-    glUniform1i(glGetUniformLocation(g_GpuProgramID, "TextureImage18"), 18);
 
     glUseProgram(0);
 }
@@ -3112,11 +3223,11 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
         {
             jump = true;
         }
-        else if(action == GLFW_RELEASE && lock == true)
+        else if(action == GLFW_RELEASE && lock == false)
         {
             jump = false;
         }
-        else if(action == GLFW_REPEAT && lock == true)
+        else if(action == GLFW_REPEAT)
         {
             jump = false;
         }
@@ -3137,12 +3248,14 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     // Se o usuário apertar a tecla H, fazemos um "toggle" do texto informativo mostrado na tela.
     if (key == GLFW_KEY_H && action == GLFW_PRESS)
     {
+        jump = false;
         g_ShowInfoText = !g_ShowInfoText;
     }
 
     // Se o usuário apertar a tecla R, recarregamos os shaders dos arquivos "shader_fragment.glsl" e "shader_vertex.glsl".
     if (key == GLFW_KEY_R && action == GLFW_PRESS)
     {
+        jump = false;
         LoadShadersFromFiles();
         // fprintf(stdout,"Shaders recarregados!\n");
         fflush(stdout);
@@ -3153,6 +3266,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
 
     if (key == GLFW_KEY_W)
     {
+        jump = false;
         if (action == GLFW_PRESS)
             // Usuário apertou a tecla D, então atualizamos o estado para pressionada
             tecla_W_pressionada = true;
@@ -3171,6 +3285,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
 
     if (key == GLFW_KEY_A)
     {
+        jump = false;
         if (action == GLFW_PRESS)
             // Usuário apertou a tecla D, então atualizamos o estado para pressionada
             tecla_A_pressionada = true;
@@ -3189,6 +3304,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
 
     if (key == GLFW_KEY_S)
     {
+        jump = false;
         if (action == GLFW_PRESS)
             // Usuário apertou a tecla D, então atualizamos o estado para pressionada
             tecla_S_pressionada = true;
@@ -3207,6 +3323,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
 
     if (key == GLFW_KEY_D)
     {
+        jump = false;
         if (action == GLFW_PRESS)
             // Usuário apertou a tecla D, então atualizamos o estado para pressionada
             tecla_D_pressionada = true;
@@ -3225,6 +3342,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
 
     if (key == GLFW_KEY_E)
     {
+        jump = false;
         if (action == GLFW_PRESS)
             // Usuário apertou a tecla E, então atualizamos o estado para pressionada
             tecla_E_pressionada = true;
