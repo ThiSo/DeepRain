@@ -43,24 +43,21 @@ porém o auxílio para este caso não foi satisfatório, e só foi possível res
 ### Uso dos conceitos e requisitos na aplicação
 Utilização das Matrizes vistas em aula: Todas as matrizes utilizadas no programa foram reutilizadas e adaptadas a partir dos códigos dos laboratórios;
 
-Objetos representados através de malhas poligonais complexas: Foram utilizados 16 objetos diferentes, carregados no programa a partir de arquivos .OBJ.
+Objetos representados através de malhas poligonais complexas: Foram utilizados 15 objetos diferentes, carregados no programa a partir de arquivos .OBJ.
 
 Alguns exemplos de objetos seguem abaixo: <br>
 
 ![image](https://github.com/ThiSo/DeepRain/assets/81988524/9aeac2bb-4de9-4d28-bbd1-813f418de96b)
 <br>imagem 1 - modelo da nave espacial utilizado na cutscene de vitória
 
-![image](https://github.com/ThiSo/DeepRain/assets/81988524/7bb29846-c821-43ff-b71c-433a47ea9109)
-<br>imagem 2 - modelo da estátua da liberdade e peça coletável da nave
-
 ![image](https://github.com/ThiSo/DeepRain/assets/81988524/0f4704bf-9a0e-41b8-8f35-ad361db8e5a9)
-<br>imagem 3 - modelo do boss 
+<br>imagem 2 - modelo do boss 
 
 ![image](https://github.com/ThiSo/DeepRain/assets/81988524/c0e785a1-8d2b-4c6c-9af4-51a101ff4bdf)
-<br>imagem 4 - modelo do coelho, com iluminação de Blinn-Phong
+<br>imagem 3 - modelo do coelho, com iluminação de Blinn-Phong
 
 ![image](https://github.com/ThiSo/DeepRain/assets/81988524/8bb5cbfc-3cbc-471e-8db5-4e0360043550)
-<br>imagem 5 - modelos das árvores, com Gourard Shading
+<br>imagem 4 - modelos das árvores, com Gourard Shading
 
 Transformações geométricas de objetos virtuais: Este conceito é aplicado no sistema de tiro do jogo. Quando o usuário clica com o botão 
 esquerdo do mouse, uma nova instância do objeto Projectile é criada e passa por transformações geométricas distintas ao longo do seu tempo de vida;
@@ -78,19 +75,19 @@ Teste esfera-esfera que serve para checar a colisão entre o boss e a nave (o qu
 Teste ponto-cubo que checa a colisão do jogador com as bordas do mapa e com o monte presente no cenário.
 
 Modelos de iluminação de objetos geométricos: Quanto aos modelos de iluminação, quase todos os objetos do jogo utilizam um modelo de iluminação
-difusa (como exemplo, ver imagem 2 acima). Apenas o modelo do coelho (imagem 4) apresenta modelo de iluminação de Blinn-Phong; <br>
-Quanto ao modelo de interpolação, maioria dos objetos utilizam o modelo de Phong (imagens 1, 2, 3 e 4) e apenas o modelo das árvores utiliza
-o modelo de Gourard (imagem 5).
+difusa (como exemplo, ver imagem 2 acima). Apenas o modelo do coelho (imagem 3) apresenta modelo de iluminação de Blinn-Phong; <br>
+Quanto ao modelo de interpolação, maioria dos objetos utilizam o modelo de Phong (imagens 1, 2 e 3) e apenas o modelo das árvores utiliza
+o modelo de Gourard (imagem 4).
 
-Mapeamento de texturas: Todos os 16 objetos possuem as cores definidas por texturas representadas por imagens. O mapeamento destas texturas é feito
+Mapeamento de texturas: Todos os 15 objetos possuem as cores definidas por texturas representadas por imagens. O mapeamento destas texturas é feito
 com base no código dos laboratórios. Vale comentar que na textura do plano, forçamos as coordenadas de textura a sairem do intervalo [0,1] para poder
 utilizar o método GL_MIRRORED_REPEAT e não ocorrer perda de qualidade.
 
-Curvas de Bézier: Utilizamos duas curvas de bézier cúbicas para movimentação do objeto fly_monster (imagem 6 abaixo), que faz um ciclo de vôo 
+Curvas de Bézier: Utilizamos duas curvas de bézier cúbicas para movimentação do objeto fly_monster (imagem 5 abaixo), que faz um ciclo de vôo 
 ao redor do monte.
 
 ![image](https://github.com/ThiSo/DeepRain/assets/81988524/fc6de7fd-19b3-4187-bcc2-1829a74b766e)
-<br>imagem 6 - monstro com movimento definido por duas curvas de bézier cúbicas
+<br>imagem 5 - monstro com movimento definido por duas curvas de bézier cúbicas
 
 Animações de movimento baseadas no tempo: Todas as movimentações de objetos do programa (jogador, monstros, boss, etc...) se baseiam no tempo, utilizando um parâmetro delta_t, para que não hajam mudanças dependentes da CPU em que o jogo está sendo executado.
 
@@ -107,6 +104,11 @@ Botão esquerdo do mouse - atira com a arma;<br>
 ### Tutorial para compilação e execução
 Para compilar e executar o código, basta abrir o arquivo DeepRain.cbp (presente na pasta DeepRain) com a IDE Code::Blocks e clicar na opção
 "build and run" no topo da interface (ou pressionar a tecla F9, alternativamente).
+Alternativamente, pode-se encontrar o arquivo binário pré-compilado em DeepRain/bin/Debug/main.exe
+
+### Link para showcase do jogo no youtube
+https://www.youtube.com/watch?v=WOX067mlLYQ
+
 
 
 
